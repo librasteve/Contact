@@ -25,7 +25,11 @@ like $card.full-card, / 'FN:John Doe' /, "full-card has FN";
 is $card.field('name'), "John Doe",  "field('name')";
 is $card.field('email'), "john.doe@example.com", "field('email')";
 
-like $card.json, / '"name"'  /, "json has name key";
-like $card.json, / '"email"' /, "json has email key";
+like $card.json, / '"vcard"'         /, "json is jCard";
+like $card.json, / '"fn"'           /, "json has fn";
+like $card.json, / '"adr"'          /, "json has adr";
+like $card.json, / '"tel"'          /, "json has tel";
+like $card.json, / 'tel:555'        /, "json tel is URI";
+like $card.json, / '"Springfield"'  /, "json adr has locality";
 
 done-testing;

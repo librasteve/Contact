@@ -33,7 +33,21 @@ class vCard does Actionable {
 
     method field(Str $f) { self."$f"() }
 
-    method json { self.action-to-json }
+    method json {
+        use JSON::Fast;
+        my ($street, $locality, $region-zip) = $!address.lines;
+        my ($region, $postal-code)           = ($region-zip // '').split(' ', 2);
+        to-json [
+            "vcard", [
+                ["version", {},               "text", "4.0"                                              ],
+                ["fn",      {},               "text", $!name                                             ],
+                ["adr",     {type => "home"}, "text", ["", "", $street//'', $locality//'',
+                                                             $region//'', $postal-code//'', ""]          ],
+                ["tel",     {type => "voice"},"uri",  "tel:$!phone"                                      ],
+                ["email",   {},               "text", $!email                                            ],
+            ]
+        ]
+    }
 }
 
 class Actions {
