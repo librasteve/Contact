@@ -1,6 +1,31 @@
 use Test;
 use Contact;
 
-pass "replace me";
+my $text = q:to/END/;
+John Doe
+123 Main St.
+Springfield
+IL 62704
+Tel: 555-867-5309
+Email: john.doe@example.com
+END
+
+my $card = Contact::Grammar.parse($text, actions => Contact::Actions.new).made;
+
+isa-ok $card, Contact::vCard,    "made a vCard";
+is $card.name,    "John Doe",    "name";
+is $card.address, "123 Main St.\nSpringfield\nIL 62704", "address";
+is $card.phone,   "555-867-5309",        "phone";
+is $card.email,   "john.doe@example.com","email";
+
+like $card.full-card, /^ 'BEGIN:VCARD' /, "full-card starts correctly";
+like $card.full-card, /   'END:VCARD'  /, "full-card ends correctly";
+like $card.full-card, / 'FN:John Doe' /, "full-card has FN";
+
+is $card.field('name'), "John Doe",  "field('name')";
+is $card.field('email'), "john.doe@example.com", "field('email')";
+
+like $card.json, / '"name"'  /, "json has name key";
+like $card.json, / '"email"' /, "json has email key";
 
 done-testing;

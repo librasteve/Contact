@@ -1,32 +1,41 @@
+use Actionable;
+
 unit class Contact;
 
+grammar Grammar {
+    token TOP     { <name> \n <address> 'Tel: ' <phone> \n 'Email: ' <email> \n? }
+    token name    { <-[\n]>+ }
+    token address { [<!before 'Tel:'> <-[\n]>+ \n]+ }
+    token phone   { <-[\n]>+ }
+    token email   { <-[\n]>+ }
+}
 
-=begin pod
+class vCard does Actionable {
+    has $.name;
+    has $.address;
+    has $.phone;
+    has $.email;
 
-=head1 NAME
+    method transform(Str $attr, $raw) { $raw.trim }
 
-Contact - blah blah blah
+    method full-card {
+        my $adr = $!address.lines.join('\\n');
+        join "\n",
+            "BEGIN:VCARD",
+            "VERSION:4.0",
+            "FN:$!name",
+            "ADR;TYPE=home:;;$adr;;;",
+            "TEL;TYPE=voice:$!phone",
+            "EMAIL:$!email",
+            "END:VCARD",
+            ""
+    }
 
-=head1 SYNOPSIS
+    method field(Str $f) { self."$f"() }
 
-=begin code :lang<raku>
+    method json { self.action-to-json }
+}
 
-use Contact;
-
-=end code
-
-=head1 DESCRIPTION
-
-Contact is ...
-
-=head1 AUTHOR
-
-librasteve <librasteve@furnival.net>
-
-=head1 COPYRIGHT AND LICENSE
-
-Copyright 2026 librasteve
-
-This library is free software; you can redistribute it and/or modify it under the Artistic License 2.0.
-
-=end pod
+class Actions {
+    method TOP($/) { make vCard.action($/) }
+}
