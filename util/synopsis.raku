@@ -11,14 +11,15 @@ Tel: 555-867-5309
 Email: john.doe@example.com
 END
 
-my $card = Contact::Grammar.parse($text, actions => Contact::Actions.new).made;
+my $jcard = Contact::Grammar.parse($text, actions => Contact::Actions.new).made;
+my $vcard = Contact::vCard.new(card => $jcard);
 
 say "=== full-card ===";
-print $card.full-card;
+print $vcard.full-card;
 
 say "\n=== field ===";
-say $card.field('name');
-say $card.field('address');
+say $jcard.field('fn');
+say $jcard.field('adr').grep(*.so).join(', ');
 
 say "\n=== json ===";
-say $card.json;
+say $jcard.action-to-json;
