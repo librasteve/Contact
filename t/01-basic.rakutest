@@ -13,14 +13,14 @@ END
 my $jcard = Contact::Grammar.parse($text, actions => Contact::Actions.new).made;
 my $vcard = Contact::vCard.new(card => $jcard);
 
-isa-ok $jcard, Contact::jCard,           "made a jCard";
-is  $jcard.fn,      "John Doe",          "fn";
-is  $jcard.adr[2],  "123 Main St.",      "adr street";
-is  $jcard.adr[3],  "Springfield",       "adr locality";
-is  $jcard.adr[4],  "IL",               "adr region";
-is  $jcard.adr[5],  "62704",            "adr postal-code";
-is  $jcard.tel,     "tel:555-867-5309", "tel";
-is  $jcard.email,   "john.doe@example.com", "email";
+isa-ok $jcard, Contact::jCard,              "made a jCard";
+is  $jcard.fn,          "John Doe",         "fn";
+is  $jcard.street,      "123 Main St.",     "street";
+is  $jcard.locality,    "Springfield",      "locality";
+is  $jcard.region,      "IL",              "region";
+is  $jcard.postal-code, "62704",           "postal-code";
+is  $jcard.tel,         "tel:555-867-5309","tel";
+is  $jcard.email,       "john.doe@example.com", "email";
 
 isa-ok $vcard, Contact::vCard,                               "made a vCard";
 like $vcard.full-card, /^ 'BEGIN:VCARD'                   /, "full-card starts";
@@ -28,7 +28,8 @@ like $vcard.full-card, /   'FN:John Doe'                  /, "full-card FN";
 like $vcard.full-card, /   'ADR;TYPE=home:;;123 Main St.' /, "full-card ADR";
 like $vcard.full-card, /   'TEL;TYPE=voice:555-867-5309'  /, "full-card TEL";
 
-is  $jcard.field('fn'), "John Doe", "field('fn')";
+is  $jcard.field('fn'),     "John Doe",  "field('fn')";
+is  $jcard.field('street'), "123 Main St.", "field('street')";
 
 like $jcard.action-to-json, / '"vcard"'        /, "json is jCard";
 like $jcard.action-to-json, / '"fn"'           /, "json has fn";

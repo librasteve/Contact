@@ -19,7 +19,8 @@ print $vcard.full-card;
 
 say "\n=== field ===";
 say $jcard.field('fn');
-say $jcard.field('adr').grep(*.so).join(', ');
+say $jcard.field('street');
+say $jcard.field('locality') ~ ', ' ~ $jcard.field('region') ~ ' ' ~ $jcard.field('postal-code');
 
 say "\n=== json ===";
 say $jcard.action-to-json;
