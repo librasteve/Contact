@@ -1,0 +1,122 @@
+use v6.d;
+use Test;
+
+use lib '../lib';
+use Contact::Address::Grammar::en_US;  # imports: parse(), X::Contact::Address::en_US::CannotParse
+
+subtest 'numbered street with country' => {
+    my $res = parse("123, Main St.,\nSpringfield,\nIL 62704,\nUSA");
+    isa-ok $res, Contact::Address::USA, 'type';
+    is $res.street,  '123, Main St.', 'street';
+    is $res.city,    'Springfield',   'city';
+    is $res.state,   'IL',            'state';
+    is $res.zip,     '62704',         'zip';
+    is $res.country, 'USA',           'country';
+}
+
+subtest 'numbered street without country' => {
+    my $res = parse("123, Main St.,\nSpringfield,\nIL 62704");
+    is $res.street,  '123, Main St.', 'street';
+    is $res.city,    'Springfield',   'city';
+    is $res.state,   'IL',            'state';
+    is $res.zip,     '62704',         'zip';
+    is $res.country, 'USA',           'country (default)';
+}
+
+subtest 'state and zip on separate lines' => {
+    my $res = parse("123, Main St.,\nSpringfield,\nIL\n62704");
+    is $res.street, '123, Main St.', 'street';
+    is $res.city,   'Springfield',   'city';
+    is $res.state,  'IL',            'state';
+    is $res.zip,    '62704',         'zip';
+}
+
+subtest 'single-line city/state/zip' => {
+    my $res = parse("405 Union Ave.\nMiddle Village, NY 11379");
+    is $res.street, '405 Union Ave.',  'street';
+    is $res.city,   'Middle Village',  'city';
+    is $res.state,  'NY',              'state';
+    is $res.zip,    '11379',           'zip';
+}
+
+subtest 'two-word city' => {
+    my $res = parse("47 Nichols St.\nWest Warwick, RI 02893");
+    is $res.street, '47 Nichols St.', 'street';
+    is $res.city,   'West Warwick',   'city';
+    is $res.state,  'RI',             'state';
+    is $res.zip,    '02893',          'zip';
+}
+
+subtest 'Ave. street type' => {
+    my $res = parse("916 Oak Valley Ave.\nBranford, CT 06405");
+    is $res.street, '916 Oak Valley Ave.', 'street';
+    is $res.city,   'Branford',            'city';
+    is $res.state,  'CT',                  'state';
+    is $res.zip,    '06405',               'zip';
+}
+
+subtest 'full street type word' => {
+    my $res = parse("259 Sleepy Hollow Street\nKey West, FL 33040");
+    is $res.street, '259 Sleepy Hollow Street', 'street';
+    is $res.city,   'Key West',                  'city';
+    is $res.state,  'FL',                        'state';
+    is $res.zip,    '33040',                     'zip';
+}
+
+subtest 'Lane street type' => {
+    my $res = parse("9340 Golf Lane\nElyria, OH 44035");
+    is $res.street, '9340 Golf Lane', 'street';
+    is $res.city,   'Elyria',         'city';
+    is $res.state,  'OH',             'state';
+    is $res.zip,    '44035',          'zip';
+}
+
+subtest 'single-word city' => {
+    my $res = parse("7 Woodsman Street\nMonsey, NY 10952");
+    is $res.street, '7 Woodsman Street', 'street';
+    is $res.city,   'Monsey',            'city';
+    is $res.state,  'NY',                'state';
+    is $res.zip,    '10952',             'zip';
+}
+
+subtest 'West prefix city' => {
+    my $res = parse("12 Bank Ave.\nWest Hempstead, NY 11552");
+    is $res.street, '12 Bank Ave.',   'street';
+    is $res.city,   'West Hempstead', 'city';
+    is $res.state,  'NY',             'state';
+    is $res.zip,    '11552',          'zip';
+}
+
+subtest 'Hollow street name' => {
+    my $res = parse("38 Smoky Hollow Street\nOxford, MS 38655");
+    is $res.street, '38 Smoky Hollow Street', 'street';
+    is $res.city,   'Oxford',                  'city';
+    is $res.state,  'MS',                      'state';
+    is $res.zip,    '38655',                   'zip';
+}
+
+subtest 'unit prefix and multiline with country' => {
+    my $res = parse("#3 8 East 12th Street\nNew York\nNY\n10003\nUnited States ofAmerica");
+    is $res.street,  '#3 8 East 12th Street',  'street';
+    is $res.city,    'New York',                'city';
+    is $res.state,   'NY',                      'state';
+    is $res.zip,     '10003',                   'zip';
+    is $res.country, 'United States ofAmerica', 'country passthrough';
+}
+
+subtest 'zip+4 format' => {
+    my $res = parse("145 Mulberry St\nNew York, NY 10013-5231");
+    is $res.street, '145 Mulberry St', 'street';
+    is $res.city,   'New York',        'city';
+    is $res.state,  'NY',              'state';
+    is $res.zip,    '10013-5231',      'zip+4';
+}
+
+subtest 'exception on bad input' => {
+    throws-like
+        { parse("not an address") },
+        X::Contact::Address::en_US::CannotParse,
+        'throws CannotParse';
+}
+
+done-testing;

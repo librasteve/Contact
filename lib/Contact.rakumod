@@ -3,13 +3,13 @@ use Actionable;
 unit class Contact;
 
 grammar Grammar {
-    token TOP         { <name> \n <street> \n <locality> \n <region> ' ' <postal-code> \n 'Tel: ' <phone> \n 'Email: ' <email> \n? }
-    token name        { <-[\n]>+ }
+    token TOP         { <fn> \n <street> \n <locality> \n <region> ' ' <postal-code> \n 'Tel: ' <tel> \n 'Email: ' <email> \n? }
+    token fn          { <-[\n]>+ }
     token street      { <-[\n]>+ }
     token locality    { <-[\n]>+ }
     token region      { \S+ }
     token postal-code { <-[\n]>+ }
-    token phone       { <-[\n]>+ }
+    token tel         { <-[\n]>+ }
     token email       { <-[\n]>+ }
 }
 
@@ -22,8 +22,6 @@ class jCard does Actionable {
     has $.postal-code;
     has $.tel;
     has $.email;
-
-    method capture-map { {fn => 'name', tel => 'phone'} }
 
     method transform(Str $attr, $raw) {
         $attr eq 'tel' ?? "tel:{$raw.trim}" !! $raw.trim
