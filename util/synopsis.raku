@@ -11,16 +11,20 @@ Tel: 555-867-5309
 Email: john.doe@example.com
 END
 
-my $jcard = Contact::Grammar.parse($text, actions => Contact::Actions.new).made;
-my $vcard = Contact::vCard.new(card => $jcard);
+my $card  = Contact::Grammar.parse($text,
+                actions => Contact::Actions.new).made;
+my $jcard = Contact::jCard.new(:$card);
+my $vcard = Contact::vCard.new(:$card);
 
-say "=== full-card ===";
-print $vcard.full-card;
+say "=== Card ===";
+given $card {
+    say .fn;
+    say .street;
+    say "{ .locality }, { .region } { .postal-code }";
+}
 
-say "\n=== field ===";
-say $jcard.field('fn');
-say $jcard.field('street');
-say $jcard.field('locality') ~ ', ' ~ $jcard.field('region') ~ ' ' ~ $jcard.field('postal-code');
+say "\n=== vCard ===";
+print $vcard;
 
-say "\n=== json ===";
-say $jcard.action-to-json;
+say "\n=== jCard ===";
+say $jcard.to-json;

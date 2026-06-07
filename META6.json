@@ -6,11 +6,12 @@
   "build-depends": [
   ],
   "depends": [
+    "Actionable",
+    "JSON::Fast"
   ],
-  "description": "blah blah blah",
+  "description": "Parse free-form contact text into vCard (RFC 6350) and jCard (RFC 7095)",
   "license": "Artistic-2.0",
   "name": "Contact",
-  "perl": "6.d",
   "provides": {
     "Contact": "lib/Contact.rakumod"
   },

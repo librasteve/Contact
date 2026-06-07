@@ -1,0 +1,253 @@
+use v6.d;
+use Test;
+
+use Contact;
+
+subtest 'numbered street with country' => {
+    my $text = q:to/END/;
+        John Doe
+        123 Main St.
+        Springfield
+        IL 62704
+        Tel: 555-1234
+        Email: a@b.com
+        END
+    my $adr = Contact::Grammar.parse($text, actions => Contact::Actions.new).made.adr;
+    is $adr.street,      '123 Main St.', 'street';
+    is $adr.locality,    'Springfield',  'locality';
+    is $adr.region,      'IL',           'region';
+    is $adr.postal-code, '62704',        'postal-code';
+}
+
+subtest 'numbered street without country' => {
+    my $text = q:to/END/;
+        Jane Smith
+        123 Main St.
+        Springfield
+        IL 62704
+        Tel: 555-1234
+        Email: a@b.com
+        END
+    my $adr = Contact::Grammar.parse($text, actions => Contact::Actions.new).made.adr;
+    is $adr.street,      '123 Main St.', 'street';
+    is $adr.locality,    'Springfield',  'locality';
+    is $adr.region,      'IL',           'region';
+    is $adr.postal-code, '62704',        'postal-code';
+}
+
+subtest 'single-line city/region/postcode' => {
+    my $text = q:to/END/;
+        John Doe
+        405 Union Ave.
+        Middle Village
+        NY 11379
+        Tel: 555-1234
+        Email: a@b.com
+        END
+    my $adr = Contact::Grammar.parse($text, actions => Contact::Actions.new).made.adr;
+    is $adr.street,      '405 Union Ave.',  'street';
+    is $adr.locality,    'Middle Village',  'locality';
+    is $adr.region,      'NY',              'region';
+    is $adr.postal-code, '11379',           'postal-code';
+}
+
+subtest 'two-word city' => {
+    my $text = q:to/END/;
+        John Doe
+        47 Nichols St.
+        West Warwick
+        RI 02893
+        Tel: 555-1234
+        Email: a@b.com
+        END
+    my $adr = Contact::Grammar.parse($text, actions => Contact::Actions.new).made.adr;
+    is $adr.street,      '47 Nichols St.', 'street';
+    is $adr.locality,    'West Warwick',   'locality';
+    is $adr.region,      'RI',             'region';
+    is $adr.postal-code, '02893',          'postal-code';
+}
+
+subtest 'Ave. street type' => {
+    my $text = q:to/END/;
+        John Doe
+        916 Oak Valley Ave.
+        Branford
+        CT 06405
+        Tel: 555-1234
+        Email: a@b.com
+        END
+    my $adr = Contact::Grammar.parse($text, actions => Contact::Actions.new).made.adr;
+    is $adr.street,      '916 Oak Valley Ave.', 'street';
+    is $adr.locality,    'Branford',            'locality';
+    is $adr.region,      'CT',                  'region';
+    is $adr.postal-code, '06405',               'postal-code';
+}
+
+subtest 'full street type word' => {
+    my $text = q:to/END/;
+        John Doe
+        259 Sleepy Hollow Street
+        Key West
+        FL 33040
+        Tel: 555-1234
+        Email: a@b.com
+        END
+    my $adr = Contact::Grammar.parse($text, actions => Contact::Actions.new).made.adr;
+    is $adr.street,      '259 Sleepy Hollow Street', 'street';
+    is $adr.locality,    'Key West',                 'locality';
+    is $adr.region,      'FL',                       'region';
+    is $adr.postal-code, '33040',                    'postal-code';
+}
+
+subtest 'Lane street type' => {
+    my $text = q:to/END/;
+        John Doe
+        9340 Golf Lane
+        Elyria
+        OH 44035
+        Tel: 555-1234
+        Email: a@b.com
+        END
+    my $adr = Contact::Grammar.parse($text, actions => Contact::Actions.new).made.adr;
+    is $adr.street,      '9340 Golf Lane', 'street';
+    is $adr.locality,    'Elyria',         'locality';
+    is $adr.region,      'OH',             'region';
+    is $adr.postal-code, '44035',          'postal-code';
+}
+
+subtest 'single-word city' => {
+    my $text = q:to/END/;
+        John Doe
+        7 Woodsman Street
+        Monsey
+        NY 10952
+        Tel: 555-1234
+        Email: a@b.com
+        END
+    my $adr = Contact::Grammar.parse($text, actions => Contact::Actions.new).made.adr;
+    is $adr.street,      '7 Woodsman Street', 'street';
+    is $adr.locality,    'Monsey',            'locality';
+    is $adr.region,      'NY',                'region';
+    is $adr.postal-code, '10952',             'postal-code';
+}
+
+subtest 'West prefix city' => {
+    my $text = q:to/END/;
+        John Doe
+        12 Bank Ave.
+        West Hempstead
+        NY 11552
+        Tel: 555-1234
+        Email: a@b.com
+        END
+    my $adr = Contact::Grammar.parse($text, actions => Contact::Actions.new).made.adr;
+    is $adr.street,      '12 Bank Ave.',   'street';
+    is $adr.locality,    'West Hempstead', 'locality';
+    is $adr.region,      'NY',             'region';
+    is $adr.postal-code, '11552',          'postal-code';
+}
+
+subtest 'Hollow street name' => {
+    my $text = q:to/END/;
+        John Doe
+        38 Smoky Hollow Street
+        Oxford
+        MS 38655
+        Tel: 555-1234
+        Email: a@b.com
+        END
+    my $adr = Contact::Grammar.parse($text, actions => Contact::Actions.new).made.adr;
+    is $adr.street,      '38 Smoky Hollow Street', 'street';
+    is $adr.locality,    'Oxford',                  'locality';
+    is $adr.region,      'MS',                      'region';
+    is $adr.postal-code, '38655',                   'postal-code';
+}
+
+subtest 'unit prefix street' => {
+    my $text = q:to/END/;
+        John Doe
+        #3 8 East 12th Street
+        New York
+        NY 10003
+        Tel: 555-1234
+        Email: a@b.com
+        END
+    my $adr = Contact::Grammar.parse($text, actions => Contact::Actions.new).made.adr;
+    is $adr.street,      '#3 8 East 12th Street', 'street';
+    is $adr.locality,    'New York',               'locality';
+    is $adr.region,      'NY',                     'region';
+    is $adr.postal-code, '10003',                  'postal-code';
+}
+
+subtest 'postcode+4 format' => {
+    my $text = q:to/END/;
+        John Doe
+        145 Mulberry St
+        New York
+        NY 10013-5231
+        Tel: 555-1234
+        Email: a@b.com
+        END
+    my $adr = Contact::Grammar.parse($text, actions => Contact::Actions.new).made.adr;
+    is $adr.street,      '145 Mulberry St', 'street';
+    is $adr.locality,    'New York',        'locality';
+    is $adr.region,      'NY',              'region';
+    is $adr.postal-code, '10013-5231',      'postal-code+4';
+}
+
+subtest 'exception on bad input' => {
+    throws-like
+        { Contact::Grammar.parse("", actions => Contact::Actions.new) },
+        X::Contact::CannotParse,
+        'bad input throws CannotParse';
+}
+
+subtest 'po-box' => {
+    my $text = q:to/END/;
+        John Doe
+        PO Box 999
+        123 Main St.
+        Springfield
+        IL 62704
+        Tel: 555-1234
+        Email: a@b.com
+        END
+    my $adr = Contact::Grammar.parse($text, actions => Contact::Actions.new).made.adr;
+    is $adr.po-box,      'PO Box 999',   'po-box';
+    is $adr.street,      '123 Main St.', 'street';
+    is $adr.locality,    'Springfield',  'locality';
+    is $adr.postal-code, '62704',        'postal-code';
+}
+
+subtest 'ext-address (apt)' => {
+    my $text = q:to/END/;
+        John Doe
+        Apt 4B
+        123 Main St.
+        Springfield
+        IL 62704
+        Tel: 555-1234
+        Email: a@b.com
+        END
+    my $adr = Contact::Grammar.parse($text, actions => Contact::Actions.new).made.adr;
+    is $adr.ext-address, 'Apt 4B',       'ext-address';
+    is $adr.street,      '123 Main St.', 'street';
+}
+
+
+subtest 'country' => {
+    my $text = q:to/END/;
+        John Doe
+        123 Main St.
+        Springfield
+        IL 62704
+        United States
+        Tel: 555-1234
+        Email: a@b.com
+        END
+    my $adr = Contact::Grammar.parse($text, actions => Contact::Actions.new).made.adr;
+    is $adr.street,  '123 Main St.',  'street';
+    is $adr.country, 'United States', 'country';
+}
+
+done-testing;

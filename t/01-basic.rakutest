@@ -10,31 +10,62 @@ Tel: 555-867-5309
 Email: john.doe@example.com
 END
 
-my $jcard = Contact::Grammar.parse($text, actions => Contact::Actions.new).made;
-my $vcard = Contact::vCard.new(card => $jcard);
+my $card  = Contact::Grammar.parse($text, actions => Contact::Actions.new).made;
+my $jcard = Contact::jCard.new(card => $card);
+my $vcard = Contact::vCard.new(card => $card);
 
-isa-ok $jcard, Contact::jCard,              "made a jCard";
-is  $jcard.fn,          "John Doe",         "fn";
-is  $jcard.street,      "123 Main St.",     "street";
-is  $jcard.locality,    "Springfield",      "locality";
-is  $jcard.region,      "IL",              "region";
-is  $jcard.postal-code, "62704",           "postal-code";
-is  $jcard.tel,         "tel:555-867-5309","tel";
-is  $jcard.email,       "john.doe@example.com", "email";
+isa-ok $card, Contact::Card,              "made a Card";
+is  $card.fn,          "John Doe",        "fn";
+is  $card.street,      "123 Main St.",    "street";
+is  $card.locality,    "Springfield",     "locality";
+is  $card.region,      "IL",              "region";
+is  $card.postal-code, "62704",           "postal-code";
+is  $card.tel,         "555-867-5309",    "tel";
+is  $card.email,       "john.doe@example.com", "email";
 
 isa-ok $vcard, Contact::vCard,                               "made a vCard";
-like $vcard.full-card, /^ 'BEGIN:VCARD'                   /, "full-card starts";
-like $vcard.full-card, /   'FN:John Doe'                  /, "full-card FN";
-like $vcard.full-card, /   'ADR;TYPE=home:;;123 Main St.' /, "full-card ADR";
-like $vcard.full-card, /   'TEL;TYPE=voice:555-867-5309'  /, "full-card TEL";
+like $vcard, /^ 'BEGIN:VCARD'                   /, "full-card starts";
+like $vcard, /   'FN:John Doe'                  /, "full-card FN";
+like $vcard, /   'ADR;TYPE=home:;;123 Main St.' /, "full-card ADR";
+like $vcard, /   'TEL;TYPE=voice:555-867-5309'  /, "full-card TEL";
 
-is  $jcard.field('fn'),     "John Doe",  "field('fn')";
-is  $jcard.field('street'), "123 Main St.", "field('street')";
 
-like $jcard.action-to-json, / '"vcard"'        /, "json is jCard";
-like $jcard.action-to-json, / '"fn"'           /, "json has fn";
-like $jcard.action-to-json, / '"adr"'          /, "json has adr";
-like $jcard.action-to-json, / 'tel:555'        /, "json tel is URI";
-like $jcard.action-to-json, / '"Springfield"'  /, "json adr has locality";
+like $jcard.to-json, / '"vcard"'        /, "json is jCard";
+like $jcard.to-json, / '"fn"'           /, "json has fn";
+like $jcard.to-json, / '"adr"'          /, "json has adr";
+like $jcard.to-json, / '555-867-5309'   /, "json has tel";
+like $jcard.to-json, / '"Springfield"'  /, "json adr has locality";
+
+subtest 'tel and email only (no adr)' => {
+    my $text = "John Doe\nTel: 555-1234\nEmail: a@b.com\n";
+    my $card = Contact::Grammar.parse($text, actions => Contact::Actions.new).made;
+    is  $card.fn,    "John Doe",  "fn";
+    is  $card.tel,   "555-1234",  "tel";
+    is  $card.email, "a@b.com",   "email";
+    nok $card.adr,                "adr absent";
+}
+
+subtest 'email before adr (different order)' => {
+    my $text = q:to/END/;
+        John Doe
+        Email: a@b.com
+        123 Main St.
+        Springfield
+        IL 62704
+        Tel: 555-1234
+        END
+    my $card = Contact::Grammar.parse($text, actions => Contact::Actions.new).made;
+    is $card.fn,     "John Doe",     "fn";
+    is $card.email,  "a@b.com",      "email";
+    is $card.street, "123 Main St.", "street";
+    is $card.tel,    "555-1234",     "tel";
+}
+
+subtest 'name only' => {
+    my $card = Contact::Grammar.parse("John Doe", actions => Contact::Actions.new).made;
+    is  $card.fn, "John Doe", "fn";
+    nok $card.tel,            "tel absent";
+    nok $card.email,          "email absent";
+}
 
 done-testing;
