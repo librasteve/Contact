@@ -1,0 +1,66 @@
+use v6.d;
+use Test;
+use Contact;
+
+sub parse-card(Str $text) {
+    Contact::Grammar.parse($text, actions => Contact::Actions.new).made
+}
+
+subtest 'John Doe — basic two-word name' => {
+    my $c = parse-card("John Doe\n123 Main St.\nSpringfield\nIL 62704\n");
+    is $c.given,      'John', 'given';
+    is $c.family,     'Doe',  'family';
+    is $c.additional, '',     'additional empty';
+    is $c.prefix,     '',     'prefix empty';
+    is $c.suffix,     '',     'suffix empty';
+}
+
+subtest 'John Q. Doe — with middle initial' => {
+    my $c = parse-card("John Q. Doe\n");
+    is $c.given,      'John', 'given';
+    is $c.additional, 'Q.',   'additional';
+    is $c.family,     'Doe',  'family';
+}
+
+subtest 'Mary Jane Watson — two-word given name treated as given + additional' => {
+    my $c = parse-card("Mary Jane Watson\n");
+    is $c.given,      'Mary',    'given';
+    is $c.additional, 'Jane',    'additional';
+    is $c.family,     'Watson',  'family';
+}
+
+subtest 'Dr. John Q. Doe Jr. — prefix and suffix' => {
+    my $c = parse-card("Dr. John Q. Doe Jr.\n");
+    is $c.prefix,     'Dr.',  'prefix';
+    is $c.given,      'John', 'given';
+    is $c.additional, 'Q.',   'additional';
+    is $c.family,     'Doe',  'family';
+    is $c.suffix,     'Jr.',  'suffix';
+}
+
+subtest 'Cher — single name' => {
+    my $c = parse-card("Cher\n");
+    is $c.family, 'Cher', 'family';
+    is $c.given,  '',     'given empty';
+}
+
+subtest 'handles delegation from Card' => {
+    my $c = parse-card("John Doe\n");
+    is $c.given,  'John', 'card.given delegates to card.n.given';
+    is $c.family, 'Doe',  'card.family delegates to card.n.family';
+}
+
+subtest 'vCard N: line' => {
+    my $c     = parse-card("John Doe\n123 Main St.\nSpringfield\nIL 62704\n");
+    my $vcard = Contact::vCard.new(card => $c);
+    like $vcard, / 'N:Doe;John;;;' /, 'vCard N: line';
+}
+
+subtest 'jCard n entry' => {
+    my $c     = parse-card("John Doe\n123 Main St.\nSpringfield\nIL 62704\n");
+    my $jcard = Contact::jCard.new(card => $c);
+    like $jcard.to-json, / '"n"' /, 'jCard has n';
+    like $jcard.to-json, / '"Doe"' /, 'jCard n has family';
+}
+
+done-testing;

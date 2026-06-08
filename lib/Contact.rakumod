@@ -135,6 +135,7 @@ This library is free software; you can redistribute it and/or modify it under th
 =end pod
 
 use Actionable;
+use Contact::Name;
 
 unit class Contact;
 
@@ -208,15 +209,25 @@ class Address does Actionable {
 }
 
 class Card does Actionable {
-    has Str $.version = "4.0";
-    has Str $.fn;
-    has Address $.adr handles @adr-components;
-    has Str $.tel;
-    has Str $.email;
+    has Str           $.version = "4.0";
+    has Str           $.fn;
+    has Contact::Name $.n handles <prefix given additional family suffix>;
+    has Address       $.adr handles @adr-components;
+    has Str           $.tel;
+    has Str           $.email;
+}
+
+sub parse-name(Str $name) {
+    Contact::Name-Grammar.parse($name, actions => Contact::Name-Actions.new)
 }
 
 class Actions {
-    method TOP($/) { make Card.action($/)    }
+    method TOP($/) {
+        my $fn-str = ~$<fn>;
+        my $nm = parse-name($fn-str);
+        my $n  = $nm ?? $nm.made !! Contact::Name.new(:family($fn-str));
+        make Card.action($/, :$n);
+    }
     method adr($/) { make Address.action($/) }
 }
 
@@ -230,6 +241,7 @@ class jCard {
                 "vcard", [
                     ["version", {},                "text", .version        ],
                     ["fn",      {},                "text", .fn             ],
+                    ["n",       {},                "text", [.n.family, .n.given, .n.additional, .n.prefix, .n.suffix] ],
                     ["adr",     {type => "home"},  "text", .adr.components ],
                     ["tel",     {type => "voice"}, "uri",  .tel            ],
                     ["email",   {},                "text", .email          ],
@@ -247,9 +259,10 @@ class vCard {
             BEGIN:VCARD
             VERSION:{.version}
             FN:{.fn}
+            N:{.n.family};{.n.given};{.n.additional};{.n.prefix};{.n.suffix}
             ADR;TYPE=home:{.adr.components.join(';')}
-            TEL;TYPE=voice:{.tel}
-            EMAIL:{.email}
+            TEL;TYPE=voice:{.tel // ''}
+            EMAIL:{.email // ''}
             END:VCARD
             END
         }

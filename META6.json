@@ -13,7 +13,8 @@
   "license": "Artistic-2.0",
   "name": "Contact",
   "provides": {
-    "Contact": "lib/Contact.rakumod"
+    "Contact": "lib/Contact.rakumod",
+    "Contact::Name": "lib/Contact/Name.rakumod"
   },
   "resources": [
   ],
