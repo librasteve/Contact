@@ -134,6 +134,25 @@ This library is free software; you can redistribute it and/or modify it under th
 
 =end pod
 
+=begin pod
+
+=head1 TODOS
+
+=item bring in UK
+=item externalize USA specific
+=item parse vCard (as LLM DSL?) ie returns a Contact::Card
+=item auto-detect country (pre-parse?)
+=item make intenational loadable
+=item breakdown tel
+
+=head1 SNAGS
+
+=item weird parse logic / inheritance
+=item UK attrs not gonna fit
+=item exception for each Grammar block - locale and thingy
+
+=end pod
+
 use Actionable;
 
 unit class Contact;
@@ -151,6 +170,12 @@ constant %syns = (
     prefix  => <Mr Mrs Ms Miss Dr Prof Rev>,
     suffix  => <Jr Sr II III IV Esq PhD MD JD>,
 );
+
+sub prep(Str $text is copy) {
+    $text ~~ s:g/','$$//;
+    $text .= chomp;
+    $text
+}
 
 grammar Name-Grammar {
     regex name {
@@ -188,7 +213,7 @@ class Name is Actionable {
     method additional { ($!additional // []).join(' ') }
 }
 
-grammar Adr-Grammar {
+grammar US-Adr-Grammar {
     token adr {
         [ <po-box>      \n ]?
         [ <ext-address> \n ]?
@@ -207,6 +232,32 @@ grammar Adr-Grammar {
     token country     { :i @(%syns<country>) }
 }
 
+grammar UK-Adr-Grammar {
+    regex adr {
+        [ <ext-address=house>   \n ]?
+          <street>              \n
+          <locality=town>
+        [ \h+  <postal-code=postcode>
+        | \n [ <region=county>  [ ','? \h+ <postal-code=postcode>
+                                | \n   <postal-code=postcode> ]
+             | <postal-code=postcode>
+             ]
+        ]
+        \n?
+        [ <country> \n? ]?
+    }
+
+    token house    { <nodt-words> }
+    token town     { <nodt-words> }
+    token county   { <nodt-words> }
+    token street   { <-[\n]>+ }
+    token postcode { \S+ \h \d \w \w }
+    token country  { <-[\n]>+ }
+
+    token nodt-word  { <[\w\-']>+ <?{ $/ !~~ /\d/ }> }
+    token nodt-words { <nodt-word>+ % \h }
+}
+
 class Address does Actionable {
     has Str $.po-box;
     has Str $.ext-address;
@@ -220,7 +271,7 @@ class Address does Actionable {
     method components { $.attrs.map: { self."$_"() // '' } }
 }
 
-grammar Grammar is Name-Grammar is Adr-Grammar {
+grammar Grammar-Common is Name-Grammar {
     token TOP {
         <name>
         [ \n
@@ -234,11 +285,28 @@ grammar Grammar is Name-Grammar is Adr-Grammar {
 
     token tel   { <-[\n]>+ }
     token email { <-[\n]>+ }
+}
 
+grammar Grammar is Grammar-Common is US-Adr-Grammar {
     method parse($text, |c) {
         CATCH { default { X::Contact::CannotParse.new(:$text).throw } }
         my $m = callsame;
         $m or X::Contact::CannotParse.new(:$text).throw
+    }
+}
+
+grammar Grammar::UK-Base is Grammar-Common is UK-Adr-Grammar {
+    method parse($text, |c) {
+        CATCH { default { X::Contact::CannotParse.new(:$text).throw } }
+        my $m = callsame;
+        $m or X::Contact::CannotParse.new(:$text).throw
+    }
+}
+
+grammar Grammar::UK is Grammar::UK-Base {
+    method parse($text is copy, |c) {
+        $text = prep($text);
+        nextwith($text, |c)
     }
 }
 

@@ -1,0 +1,96 @@
+use v6.d;
+use Test;
+use Contact;
+
+sub parse-uk(Str $address) {
+    Contact::Grammar::UK.parse("John Doe\n$address", actions => Contact::Actions.new).made
+}
+
+subtest 'house + street + county + country' => {
+    my $c = parse-uk("Sleepy Cottage,\n123, Badgemore Lane,\nHenley-on-Thames,\nOxon,\nRG9 2XX\nUK");
+    is $c.ext-address,  'Sleepy Cottage',      'house → ext-address';
+    is $c.street,       '123, Badgemore Lane', 'street';
+    is $c.locality,     'Henley-on-Thames',    'town → locality';
+    is $c.region,       'Oxon',                'county → region';
+    is $c.postal-code,  'RG9 2XX',             'postcode → postal-code';
+    is $c.country,      'UK',                  'country';
+}
+
+subtest 'no house' => {
+    my $c = parse-uk("123, Badgemore Lane,\nHenley-on-Thames,\nOxon,\nRG9 2XX");
+    nok $c.ext-address.defined,                'house absent';
+    is $c.street,       '123, Badgemore Lane', 'street';
+    is $c.locality,     'Henley-on-Thames',    'locality';
+    is $c.region,       'Oxon',                'region';
+    is $c.postal-code,  'RG9 2XX',             'postal-code';
+}
+
+subtest 'county and postcode on same line' => {
+    my $c = parse-uk("Sleepy Cottage,\nBadgemore Lane,\nHenley-on-Thames,\nOxon, RG9 2XX");
+    is $c.ext-address,  'Sleepy Cottage',   'ext-address';
+    is $c.street,       'Badgemore Lane',   'street';
+    is $c.locality,     'Henley-on-Thames', 'locality';
+    is $c.region,       'Oxon',             'region (comma stripped)';
+    is $c.postal-code,  'RG9 2XX',          'postal-code';
+}
+
+subtest 'numbered street, postcode on town line' => {
+    my $c = parse-uk("39 George Street\nDorchester DT0 8QL");
+    nok $c.ext-address.defined,          'house absent';
+    is $c.street,       '39 George Street', 'street';
+    is $c.locality,     'Dorchester',        'locality';
+    nok $c.region.defined,               'region absent';
+    is $c.postal-code,  'DT0 8QL',          'postal-code';
+}
+
+subtest 'street + town + postcode' => {
+    my $c = parse-uk("69 New Street\nSlough\nSL22 5ZL");
+    is $c.street,       '69 New Street', 'street';
+    is $c.locality,     'Slough',        'locality';
+    is $c.postal-code,  'SL22 5ZL',      'postal-code';
+}
+
+subtest 'High Street' => {
+    my $c = parse-uk("50 High Street\nTaunton\nTA43 5VW");
+    is $c.street,       '50 High Street', 'street';
+    is $c.locality,     'Taunton',        'locality';
+    is $c.postal-code,  'TA43 5VW',       'postal-code';
+}
+
+subtest 'Windsor Road' => {
+    my $c = parse-uk("71 Windsor Road\nIpswich\nIP31 1RY");
+    is $c.street,       '71 Windsor Road', 'street';
+    is $c.locality,     'Ipswich',         'locality';
+    is $c.postal-code,  'IP31 1RY',        'postal-code';
+}
+
+subtest 'with country Scotland' => {
+    my $c = parse-uk("12 Richmond Road\nKirkcaldy\nKY34 6CS\nScotland");
+    is $c.street,       '12 Richmond Road', 'street';
+    is $c.locality,     'Kirkcaldy',        'locality';
+    is $c.postal-code,  'KY34 6CS',         'postal-code';
+    is $c.country,      'Scotland',         'country';
+}
+
+subtest 'London Kingsway' => {
+    my $c = parse-uk("88 Kingsway\nLondon\nWC50 8KD");
+    is $c.street,       '88 Kingsway', 'street';
+    is $c.locality,     'London',      'locality';
+    is $c.postal-code,  'WC50 8KD',   'postal-code';
+}
+
+subtest 'short postcode' => {
+    my $c = parse-uk("123 Quick Road\nLondon\nW4 2XX");
+    is $c.street,       '123 Quick Road', 'street';
+    is $c.locality,     'London',         'locality';
+    is $c.postal-code,  'W4 2XX',         'postal-code';
+}
+
+subtest 'exception on bad input' => {
+    throws-like
+        { Contact::Grammar::UK.parse("", actions => Contact::Actions.new) },
+        X::Contact::CannotParse,
+        'throws CannotParse';
+}
+
+done-testing;
