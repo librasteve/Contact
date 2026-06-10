@@ -22,7 +22,7 @@ my $card  = Contact::Grammar.parse($text, actions => Contact::Actions.new).made;
 my $jcard = Contact::jCard.new(:$card);
 my $vcard = Contact::vCard.new(:$card);
 
-say $card.fn;                                              # John Doe
+say $card.n;                                              # John Doe
 say $card.street;                                          # 123 Main St.
 say "{.locality}, {.region} {.postal-code}" given $card;  # Springfield, IL 62704
 
@@ -37,11 +37,11 @@ data conforming to B<vCard 4.0 (RFC 6350)> and B<jCard (RFC 7095)>.
 
 =head2 Input format
 
-The input is a plain-text block. The full name (C<fn>) is always the first line;
+The input is a plain-text block. The full name (C<n>) is always the first line;
 all other fields are optional and may appear in any order:
 
 =begin code
-John Doe                     ← fn        (required, always first)
+John Doe                     ← n        (required, always first)
 PO Box 999                   ← po-box    (optional)
 Apt 4B                       ← ext-address (optional, see %syns<apt>)
 123 Main St.                 ← street
@@ -76,7 +76,7 @@ fields as empty strings, ready for embedding in a jCard C<adr> array.
 
 The primary parsed result, populated automatically from grammar captures via
 L<Actionable|https://raku.land/zef:librasteve/Actionable>. Attributes:
-C<version> (default C<"4.0">), C<fn>, C<adr> (a C<Contact::Address>), C<tel>,
+C<version> (default C<"4.0">), C<n>, C<adr> (a C<Contact::Address>), C<tel>,
 C<email>. Address sub-fields (C<street>, C<locality>, etc.) are delegated
 directly from C<$.adr>.
 
@@ -135,7 +135,6 @@ This library is free software; you can redistribute it and/or modify it under th
 =end pod
 
 use Actionable;
-use Contact::Name;
 
 unit class Contact;
 
@@ -144,13 +143,50 @@ class X::Contact::CannotParse is Exception {
     method message { "Cannot parse contact:\n$.text" }
 }
 
-constant @adr-components = <po-box ext-address street locality region postal-code country>;
 constant %syns = (
     tel     => <Tel Telephone Phone>,
     email   => <Email E-mail>,
     apt     => <Apt Apartment Suite Ste Unit Flat Fl>,
     country => ('United States of America', 'United States', 'USA', 'US', 'America'),
+    prefix  => <Mr Mrs Ms Miss Dr Prof Rev>,
+    suffix  => <Jr Sr II III IV Esq PhD MD JD>,
 );
+
+grammar Name-Grammar {
+    regex name {
+        [<prefix> \h+]?
+        [
+        | <given=word> [\h+ <additional=word>]* \h+ <family=word>
+        | <family=word>
+        ]
+        [\h+ <suffix>]?
+    }
+    token prefix { :i @(%syns<prefix>) '.'? }
+    token suffix { :i @(%syns<suffix>) '.'? }
+
+    token word   { <!before :i @(%syns<suffix>) '.'? [\s|$]> \S+ }
+}
+
+class Name is Actionable {
+    has Str $.prefix;
+    has Str $.given;
+    has Array[Str] $.additional;
+    has Str $.family;
+    has Str $.suffix;
+
+    method attrs(:$target = 'n') {
+        given $target {
+            when 'fn' { <prefix given additional family suffix> }
+            when 'n'  { <family given additional prefix suffix> }
+        }
+    }
+
+    method components(*%h) { $.attrs(|%h).map: { self."$_"() // '' } }
+
+    method fn { $.components(:target<fn>).grep(*.so).join(' ') }
+
+    method additional { ($!additional // []).join(' ') }
+}
 
 grammar Adr-Grammar {
     token adr {
@@ -171,19 +207,31 @@ grammar Adr-Grammar {
     token country     { :i @(%syns<country>) }
 }
 
-grammar Grammar is Adr-Grammar {
+class Address does Actionable {
+    has Str $.po-box;
+    has Str $.ext-address;
+    has Str $.street;
+    has Str $.locality;
+    has Str $.region;
+    has Str $.postal-code;
+    has Str $.country;
+
+    method attrs { <po-box ext-address street locality region postal-code country> }
+    method components { $.attrs.map: { self."$_"() // '' } }
+}
+
+grammar Grammar is Name-Grammar is Adr-Grammar {
     token TOP {
-        <fn>
+        <name>
         [ \n
-            [
-                | <adr>
-                | [:i @(%syns<tel>)]   ':'? \h* <tel>
-                | [:i @(%syns<email>)] ':'? \h* <email>
-            ]
+        [
+        | <adr>
+        | [:i @(%syns<tel>)]   ':'? \h* <tel>
+        | [:i @(%syns<email>)] ':'? \h* <email>
+        ]
         ]* \n?
     }
 
-    token fn    { <-[\n]>+ }
     token tel   { <-[\n]>+ }
     token email { <-[\n]>+ }
 
@@ -194,41 +242,18 @@ grammar Grammar is Adr-Grammar {
     }
 }
 
-class Address does Actionable {
-    has Str $.po-box;
-    has Str $.ext-address;
-    has Str $.street;
-    has Str $.locality;
-    has Str $.region;
-    has Str $.postal-code;
-    has Str $.country;
-
-    method components {
-        @adr-components.map({ self."$_"() // '' })
-    }
-}
-
 class Card does Actionable {
     has Str           $.version = "4.0";
-    has Str           $.fn;
-    has Contact::Name $.n handles <prefix given additional family suffix>;
-    has Address       $.adr handles @adr-components;
+    has Name          $.name handles ('fn', |Name.attrs);
+    has Address       $.adr  handles Address.attrs;
     has Str           $.tel;
     has Str           $.email;
 }
 
-sub parse-name(Str $name) {
-    Contact::Name-Grammar.parse($name, actions => Contact::Name-Actions.new)
-}
-
 class Actions {
-    method TOP($/) {
-        my $fn-str = ~$<fn>;
-        my $nm = parse-name($fn-str);
-        my $n  = $nm ?? $nm.made !! Contact::Name.new(:family($fn-str));
-        make Card.action($/, :$n);
-    }
-    method adr($/) { make Address.action($/) }
+    method TOP($/)  { make Card.action($/) }
+    method name($/) { make Name.action($/) }
+    method adr($/)  { make Address.action($/) }
 }
 
 class jCard {
@@ -241,7 +266,7 @@ class jCard {
                 "vcard", [
                     ["version", {},                "text", .version        ],
                     ["fn",      {},                "text", .fn             ],
-                    ["n",       {},                "text", [.n.family, .n.given, .n.additional, .n.prefix, .n.suffix] ],
+                    ["n",       {},                "text", .name.components.list ],
                     ["adr",     {type => "home"},  "text", .adr.components ],
                     ["tel",     {type => "voice"}, "uri",  .tel            ],
                     ["email",   {},                "text", .email          ],
@@ -259,7 +284,7 @@ class vCard {
             BEGIN:VCARD
             VERSION:{.version}
             FN:{.fn}
-            N:{.n.family};{.n.given};{.n.additional};{.n.prefix};{.n.suffix}
+            N:{.name.components.join(';')}
             ADR;TYPE=home:{.adr.components.join(';')}
             TEL;TYPE=voice:{.tel // ''}
             EMAIL:{.email // ''}

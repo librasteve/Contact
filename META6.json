@@ -1,27 +1,19 @@
 {
-  "auth": "zef:librasteve",
-  "authors": [
-    "librasteve"
-  ],
-  "build-depends": [
-  ],
-  "depends": [
-    "Actionable",
-    "JSON::Fast"
-  ],
-  "description": "Parse free-form contact text into vCard (RFC 6350) and jCard (RFC 7095)",
-  "license": "Artistic-2.0",
-  "name": "Contact",
-  "provides": {
-    "Contact": "lib/Contact.rakumod",
-    "Contact::Name": "lib/Contact/Name.rakumod"
-  },
-  "resources": [
-  ],
-  "source-url": "",
-  "tags": [
-  ],
-  "test-depends": [
-  ],
-  "version": "0.0.1"
+    "name": "Contact",
+    "description": "Parse free-form contact text into vCard (RFC 6350) and jCard (RFC 7095)",
+    "version": "0.0.1",
+    "authors": [
+        "librasteve"
+    ],
+    "auth": "zef:librasteve",
+    "depends": [
+        "Actionable",
+        "JSON::Fast"
+    ],
+    "build-depends": [],
+    "provides": {
+        "Contact": "lib/Contact.rakumod"
+    },
+    "license": "Artistic-2.0",
+    "source-url": ""
 }

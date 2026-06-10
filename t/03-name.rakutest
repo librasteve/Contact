@@ -11,8 +11,8 @@ subtest 'John Doe — basic two-word name' => {
     is $c.given,      'John', 'given';
     is $c.family,     'Doe',  'family';
     is $c.additional, '',     'additional empty';
-    is $c.prefix,     '',     'prefix empty';
-    is $c.suffix,     '',     'suffix empty';
+    nok $c.prefix.defined, 'prefix empty';
+    nok $c.suffix.defined, 'suffix empty';
 }
 
 subtest 'John Q. Doe — with middle initial' => {
@@ -41,7 +41,7 @@ subtest 'Dr. John Q. Doe Jr. — prefix and suffix' => {
 subtest 'Cher — single name' => {
     my $c = parse-card("Cher\n");
     is $c.family, 'Cher', 'family';
-    is $c.given,  '',     'given empty';
+    nok $c.given.defined, 'given empty';
 }
 
 subtest 'handles delegation from Card' => {
