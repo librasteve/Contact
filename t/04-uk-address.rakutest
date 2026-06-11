@@ -3,7 +3,7 @@ use Test;
 use Contact;
 
 sub parse-uk(Str $address) {
-    Contact::Grammar::UK.parse("John Doe\n$address", actions => Contact::Actions.new).made
+    Contact::Grammar.parse("John Doe\n$address", actions => Contact::Actions.new).made
 }
 
 subtest 'house + street + county + country' => {
@@ -88,7 +88,7 @@ subtest 'short postcode' => {
 
 subtest 'exception on bad input' => {
     throws-like
-        { Contact::Grammar::UK.parse("", actions => Contact::Actions.new) },
+        { Contact::Grammar.parse("", actions => Contact::Actions.new) },
         X::Contact::CannotParse,
         'throws CannotParse';
 }

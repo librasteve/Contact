@@ -12,7 +12,10 @@
     ],
     "build-depends": [],
     "provides": {
-        "Contact": "lib/Contact.rakumod"
+        "Contact":            "lib/Contact.rakumod",
+        "Contact::Address":   "lib/Contact/Address.rakumod",
+        "Contact::US":        "lib/Contact/US.rakumod",
+        "Contact::UK":        "lib/Contact/UK.rakumod"
     },
     "license": "Artistic-2.0",
     "source-url": ""

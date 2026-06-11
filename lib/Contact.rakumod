@@ -154,6 +154,9 @@ This library is free software; you can redistribute it and/or modify it under th
 =end pod
 
 use Actionable;
+use Contact::Address;
+use Contact::US;
+use Contact::UK;
 
 unit class Contact;
 
@@ -163,12 +166,10 @@ class X::Contact::CannotParse is Exception {
 }
 
 constant %syns = (
-    tel     => <Tel Telephone Phone>,
-    email   => <Email E-mail>,
-    apt     => <Apt Apartment Suite Ste Unit Flat Fl>,
-    country => ('United States of America', 'United States', 'USA', 'US', 'America'),
-    prefix  => <Mr Mrs Ms Miss Dr Prof Rev>,
-    suffix  => <Jr Sr II III IV Esq PhD MD JD>,
+    tel    => <Tel Telephone Phone>,
+    email  => <Email E-mail>,
+    prefix => <Mr Mrs Ms Miss Dr Prof Rev>,
+    suffix => <Jr Sr II III IV Esq PhD MD JD>,
 );
 
 sub prep(Str $text is copy) {
@@ -213,65 +214,11 @@ class Name is Actionable {
     method additional { ($!additional // []).join(' ') }
 }
 
-grammar US-Adr-Grammar {
-    token adr {
-        [ <po-box>      \n ]?
-        [ <ext-address> \n ]?
-        <street> \n
-        <locality> \n
-        <region> ' ' <postal-code>
-        [ \n <country> ]?
-    }
+my @locale-adrs =
+    (Contact::US::Address-Grammar, Contact::US::Address),
+    (Contact::UK::Address-Grammar, Contact::UK::Address);
 
-    token po-box      { 'PO Box ' <-[\n]>+ }
-    token ext-address { [ :i @(%syns<apt>) ] ' ' <-[\n]>+ }
-    token street      { <-[\n]>+ }
-    token locality    { <-[\n]>+ }
-    token region      { \S+ }
-    token postal-code { <-[\n]>+ }
-    token country     { :i @(%syns<country>) }
-}
-
-grammar UK-Adr-Grammar {
-    regex adr {
-        [ <ext-address=house>   \n ]?
-          <street>              \n
-          <locality=town>
-        [ \h+  <postal-code=postcode>
-        | \n [ <region=county>  [ ','? \h+ <postal-code=postcode>
-                                | \n   <postal-code=postcode> ]
-             | <postal-code=postcode>
-             ]
-        ]
-        \n?
-        [ <country> \n? ]?
-    }
-
-    token house    { <nodt-words> }
-    token town     { <nodt-words> }
-    token county   { <nodt-words> }
-    token street   { <-[\n]>+ }
-    token postcode { \S+ \h \d \w \w }
-    token country  { <-[\n]>+ }
-
-    token nodt-word  { <[\w\-']>+ <?{ $/ !~~ /\d/ }> }
-    token nodt-words { <nodt-word>+ % \h }
-}
-
-class Address does Actionable {
-    has Str $.po-box;
-    has Str $.ext-address;
-    has Str $.street;
-    has Str $.locality;
-    has Str $.region;
-    has Str $.postal-code;
-    has Str $.country;
-
-    method attrs { <po-box ext-address street locality region postal-code country> }
-    method components { $.attrs.map: { self."$_"() // '' } }
-}
-
-grammar Grammar-Common is Name-Grammar {
+grammar Grammar is Name-Grammar {
     token TOP {
         <name>
         [ \n
@@ -283,45 +230,43 @@ grammar Grammar-Common is Name-Grammar {
         ]* \n?
     }
 
+    regex adr {
+        [ | <Contact::US::Address-Grammar::adr>
+          | <Contact::UK::Address-Grammar::adr>
+        ] <?before \n | $>
+    }
+
     token tel   { <-[\n]>+ }
     token email { <-[\n]>+ }
-}
 
-grammar Grammar is Grammar-Common is US-Adr-Grammar {
-    method parse($text, |c) {
-        CATCH { default { X::Contact::CannotParse.new(:$text).throw } }
-        my $m = callsame;
-        $m or X::Contact::CannotParse.new(:$text).throw
-    }
-}
-
-grammar Grammar::UK-Base is Grammar-Common is UK-Adr-Grammar {
-    method parse($text, |c) {
-        CATCH { default { X::Contact::CannotParse.new(:$text).throw } }
-        my $m = callsame;
-        $m or X::Contact::CannotParse.new(:$text).throw
-    }
-}
-
-grammar Grammar::UK is Grammar::UK-Base {
     method parse($text is copy, |c) {
         $text = prep($text);
-        nextwith($text, |c)
+        CATCH { default { X::Contact::CannotParse.new(:$text).throw } }
+        my $m = callwith($text, |c);
+        $m or X::Contact::CannotParse.new(:$text).throw
     }
 }
 
 class Card does Actionable {
-    has Str           $.version = "4.0";
-    has Name          $.name handles ('fn', |Name.attrs);
-    has Address       $.adr  handles Address.attrs;
-    has Str           $.tel;
-    has Str           $.email;
+    has Str  $.version = "4.0";
+    has Name $.name handles ('fn', |Name.attrs);
+    has      $.adr  handles <po-box ext-address street locality region postal-code country>;
+    has Str  $.tel;
+    has Str  $.email;
 }
 
 class Actions {
     method TOP($/)  { make Card.action($/) }
     method name($/) { make Name.action($/) }
-    method adr($/)  { make Address.action($/) }
+    method adr($/) {
+        for @locale-adrs -> ($gram, $cls) {
+            my $key = $gram.^name ~ '::adr';
+            if $/{$key}.defined {
+                make $cls.action($/{$key});
+                return;
+            }
+        }
+    }
 }
 
 class jCard {
