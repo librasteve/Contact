@@ -38,57 +38,64 @@ DESCRIPTION
 Input format
 ------------
 
-The input is a plain-text block. The full name (`fn`) is always the first line; all other fields are optional and may appear in any order.
+The input is a plain-text block. The full name is always the first line; all other fields are optional and may appear in any order.
 
-    John Doe                     ← fn        (required, always first)
-    PO Box 999                   ← po-box    (optional)
-    Apt 4B                       ← ext-address (optional, see %syns<apt>)
+US format:
+
+    John Doe                     ← name     (required, always first)
+    PO Box 999                   ← po-box   (optional)
+    Apt 4B                       ← ext-address (optional — Apt/Suite/Unit/…)
     123 Main St.                 ← street
     Springfield                  ← locality
     IL 62704                     ← region + postal-code
-    United States                ← country   (optional, see %syns<country>)
-    Tel: 555-867-5309            ← tel       (optional, see %syns<tel>)
-    Email: john.doe@example.com  ← email     (optional, see %syns<email>)
+    United States                ← country  (optional)
+    Tel: 555-867-5309            ← tel      (optional — Tel/Telephone/Phone)
+    Email: john.doe@example.com  ← email    (optional — Email/E-mail)
 
-UK input (use `Grammar::UK`):
+UK format (trailing commas stripped automatically):
 
     Jane Smith
-    Sleepy Cottage,              ← ext-address (optional, house name = no digits)
-    123 High Street,             ← street
-    Henley-on-Thames,            ← locality
-    Oxon,                        ← region    (optional)
+    PO Box 42                    ← po-box   (optional)
+    Sleepy Cottage               ← ext-address (optional — named house, no digits)
+    123 High Street              ← street
+    Henley-on-Thames             ← locality
+    Oxon                         ← region   (optional)
     RG9 2XX                      ← postal-code
-    UK                           ← country   (optional)
+    UK                           ← country  (optional)
 
-Label synonyms (`Tel`/`Telephone`/`Phone`, `Email`/`E-mail`) and apartment prefixes (`Apt`/`Suite`/`Unit`/…) are case-insensitive. The colon separator after a label is optional. All synonym lists are extensible via `%syns`.
+The single `Contact::Grammar` auto-detects locale from the address structure. Label and country synonyms are defined per locale in their respective modules.
 
 Contact::Grammar
 ----------------
 
-Parses a US-format contact string. Throws `X::Contact::CannotParse` if the input cannot be parsed.
+Boss grammar that assembles locale sub-grammars. Strips trailing commas and chomps the input before parsing. Throws `X::Contact::CannotParse` if the input cannot be parsed.
 
 ```raku
 my $card = Contact::Grammar.parse($text, actions => Contact::Actions.new).made;
 ```
 
-Contact::Grammar::UK
---------------------
+Locale address grammars are registered in `@locale-adrs`:
 
-Parses a UK-format contact string. Strips trailing commas from each line automatically (UK addresses often use comma-separated lines). Throws `X::Contact::CannotParse` if the input cannot be parsed.
+  * `Contact::Address::en_US::Grammar` — US street addresses
 
-```raku
-my $card = Contact::Grammar::UK.parse($text, actions => Contact::Actions.new).made;
-```
+  * `Contact::Address::en_UK::Grammar` — UK street addresses
 
 Contact::Address
 ----------------
 
-Holds the seven jCard ADR components defined in **RFC 6350 §6.3.1**: `po-box`, `ext-address`, `street`, `locality`, `region`, `postal-code`, `country`. The `components` method returns them as an ordered list with absent fields as empty strings, ready for embedding in a jCard `adr` array.
+Role defining the seven RFC 6350 §6.3.1 address components: `po-box`, `ext-address`, `street`, `locality`, `region`, `postal-code`, `country`. The `components` method returns them as an ordered list with absent fields as empty strings, ready for embedding in a jCard `adr` array.
+
+Locale classes (`Contact::Address::en_US::Address`, `Contact::Address::en_UK::Address`) implement this role, mapping their local attribute names (e.g. `town`, `postcode`) to the RFC methods.
+
+Contact::Name
+-------------
+
+Module providing `Contact::Name::Grammar` and `Contact::Name::Name`. The grammar parses a free-form name line into prefix, given, additional, family, and suffix components. The class implements RFC 6350 `N` and `FN` fields via `components` and `fn`.
 
 Contact::Card
 -------------
 
-The primary parsed result, populated automatically from grammar captures via [Actionable](https://raku.land/zef:librasteve/Actionable). Attributes: `version` (default `"4.0"`), `fn`, `adr` (a `Contact::Address`), `tel`, `email`. Address sub-fields (`street`, `locality`, etc.) are delegated directly from `$.adr`.
+The primary parsed result, populated automatically from grammar captures via [Actionable](https://raku.land/zef:librasteve/Actionable). Attributes: `version` (default `"4.0"`), `name`, `adr`, `tel`, `email`. Name sub-fields (`fn`, `given`, `family`, etc.) and address sub-fields (`street`, `locality`, etc.) are delegated directly from `$.name` and `$.adr`.
 
 Contact::jCard
 --------------
@@ -113,15 +120,36 @@ print $vcard;   # coerces via method Str
 Synonyms
 --------
 
-`%syns` is the single configuration point for all keyword lists. All matches are case-insensitive:
+Label synonyms live in `Contact.rakumod`; address and name synonyms live in their locale modules. All matches are case-insensitive.
+
+`Contact` (tel/email labels):
 
 ```raku
 constant %syns = (
-    tel     => <Tel Telephone Phone>,
-    email   => <Email E-mail>,
-    apt     => <Apt Apartment Suite Ste Unit Flat Fl>,
-    country => ('United States of America', 'United States', 'USA', 'US', 'America'),
+    tel   => <Tel Telephone Phone>,
+    email => <Email E-mail>,
 );
+```
+
+`Contact::Address::en_US` (apt prefixes, country names):
+
+```raku
+my constant @apt-syns     = <Apt Apartment Suite Ste Unit Flat Fl>;
+my constant @country-syns = ('United States of America', 'United States', 'USA', 'US', 'America');
+```
+
+`Contact::Address::en_UK` (country names):
+
+```raku
+my constant @country-syns = ('England', 'Scotland', 'Wales', 'Northern Ireland',
+                              'United Kingdom', 'UK', 'Great Britain', 'GB', 'Britain', ...);
+```
+
+`Contact::Name` (honorifics, suffixes):
+
+```raku
+my constant @prefix-syns = <Mr Mrs Ms Miss Dr Prof Rev>;
+my constant @suffix-syns = <Jr Sr II III IV Esq PhD MD JD>;
 ```
 
 Exceptions
