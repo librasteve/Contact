@@ -38,7 +38,7 @@ DESCRIPTION
 Input format
 ------------
 
-The input is a plain-text block. The full name (`fn`) is always the first line; all other fields are optional and may appear in any order:
+The input is a plain-text block. The full name (`fn`) is always the first line; all other fields are optional and may appear in any order.
 
     John Doe                     ← fn        (required, always first)
     PO Box 999                   ← po-box    (optional)
@@ -50,15 +50,34 @@ The input is a plain-text block. The full name (`fn`) is always the first line; 
     Tel: 555-867-5309            ← tel       (optional, see %syns<tel>)
     Email: john.doe@example.com  ← email     (optional, see %syns<email>)
 
+UK input (use `Grammar::UK`):
+
+    Jane Smith
+    Sleepy Cottage,              ← ext-address (optional, house name = no digits)
+    123 High Street,             ← street
+    Henley-on-Thames,            ← locality
+    Oxon,                        ← region    (optional)
+    RG9 2XX                      ← postal-code
+    UK                           ← country   (optional)
+
 Label synonyms (`Tel`/`Telephone`/`Phone`, `Email`/`E-mail`) and apartment prefixes (`Apt`/`Suite`/`Unit`/…) are case-insensitive. The colon separator after a label is optional. All synonym lists are extensible via `%syns`.
 
 Contact::Grammar
 ----------------
 
-Parses a contact string. Inherits address tokens from `Contact::Adr-Grammar`. Throws `X::Contact::CannotParse` if the input cannot be parsed.
+Parses a US-format contact string. Throws `X::Contact::CannotParse` if the input cannot be parsed.
 
 ```raku
 my $card = Contact::Grammar.parse($text, actions => Contact::Actions.new).made;
+```
+
+Contact::Grammar::UK
+--------------------
+
+Parses a UK-format contact string. Strips trailing commas from each line automatically (UK addresses often use comma-separated lines). Throws `X::Contact::CannotParse` if the input cannot be parsed.
+
+```raku
+my $card = Contact::Grammar::UK.parse($text, actions => Contact::Actions.new).made;
 ```
 
 Contact::Address

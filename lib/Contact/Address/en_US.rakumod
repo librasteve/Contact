@@ -1,25 +1,25 @@
 use Actionable;
 use Contact::Address;
 
-unit module Contact::US;
+unit module Contact::Address::en_US;
 
 my constant @apt-syns     = <Apt Apartment Suite Ste Unit Flat Fl>;
 my constant @country-syns = ('United States of America', 'United States', 'USA', 'US', 'America');
 
-grammar Address-Grammar {
+grammar Grammar {
     token adr {
-        [ <po-box>      \n ]?
-        [ <ext-address> \n ]?
-        <street> \n
-        <locality> \n
+        [ <po-box>      \v ]?
+        [ <ext-address> \v ]?
+        <street> \v
+        <locality> \v
         <region> ' ' <postal-code>
-        [ \n <country> ]?
+        [ \v <country> ]?
     }
 
-    token po-box      { 'PO Box ' <-[\n]>+ }
-    token ext-address { [ :i @apt-syns ] ' ' <-[\n]>+ }
-    token street      { <-[\n]>+ }
-    token locality    { <-[\n]>+ }
+    token po-box      { :i 'PO Box ' <-[\v]>+ }
+    token ext-address { [ :i @apt-syns ] ' ' <-[\v]>+ }
+    token street      { <-[\v]>+ }
+    token locality    { <-[\v]>+ }
     token region      { \S+ }
     token postal-code { \d+ ['-' \d ** 4]? }
     token country     { :i @country-syns }

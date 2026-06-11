@@ -138,25 +138,17 @@ This library is free software; you can redistribute it and/or modify it under th
 
 =head1 TODOS
 
-=item bring in UK
-=item externalize USA specific
 =item parse vCard (as LLM DSL?) ie returns a Contact::Card
-=item auto-detect country (pre-parse?)
-=item make intenational loadable
 =item breakdown tel
-
-=head1 SNAGS
-
-=item weird parse logic / inheritance
-=item UK attrs not gonna fit
 =item exception for each Grammar block - locale and thingy
 
 =end pod
 
 use Actionable;
 use Contact::Address;
-use Contact::US;
-use Contact::UK;
+use Contact::Name;
+use Contact::Address::en_US;
+use Contact::Address::en_UK;
 
 unit class Contact;
 
@@ -166,10 +158,8 @@ class X::Contact::CannotParse is Exception {
 }
 
 constant %syns = (
-    tel    => <Tel Telephone Phone>,
-    email  => <Email E-mail>,
-    prefix => <Mr Mrs Ms Miss Dr Prof Rev>,
-    suffix => <Jr Sr II III IV Esq PhD MD JD>,
+    tel   => <Tel Telephone Phone>,
+    email => <Email E-mail>,
 );
 
 sub prep(Str $text is copy) {
@@ -178,66 +168,30 @@ sub prep(Str $text is copy) {
     $text
 }
 
-grammar Name-Grammar {
-    regex name {
-        [<prefix> \h+]?
-        [
-        | <given=word> [\h+ <additional=word>]* \h+ <family=word>
-        | <family=word>
-        ]
-        [\h+ <suffix>]?
-    }
-    token prefix { :i @(%syns<prefix>) '.'? }
-    token suffix { :i @(%syns<suffix>) '.'? }
-
-    token word   { <!before :i @(%syns<suffix>) '.'? [\s|$]> \S+ }
-}
-
-class Name is Actionable {
-    has Str $.prefix;
-    has Str $.given;
-    has Array[Str] $.additional;
-    has Str $.family;
-    has Str $.suffix;
-
-    method attrs(:$target = 'n') {
-        given $target {
-            when 'fn' { <prefix given additional family suffix> }
-            when 'n'  { <family given additional prefix suffix> }
-        }
-    }
-
-    method components(*%h) { $.attrs(|%h).map: { self."$_"() // '' } }
-
-    method fn { $.components(:target<fn>).grep(*.so).join(' ') }
-
-    method additional { ($!additional // []).join(' ') }
-}
-
 my @locale-adrs =
-    (Contact::US::Address-Grammar, Contact::US::Address),
-    (Contact::UK::Address-Grammar, Contact::UK::Address);
+    (Contact::Address::en_US::Grammar, Contact::Address::en_US::Address),
+    (Contact::Address::en_UK::Grammar, Contact::Address::en_UK::Address);
 
-grammar Grammar is Name-Grammar {
+grammar Grammar is Contact::Name::Grammar {
     token TOP {
         <name>
-        [ \n
+        [ \v
         [
         | <adr>
         | [:i @(%syns<tel>)]   ':'? \h* <tel>
         | [:i @(%syns<email>)] ':'? \h* <email>
         ]
-        ]* \n?
+        ]* \v?
     }
 
     regex adr {
-        [ | <Contact::US::Address-Grammar::adr>
-          | <Contact::UK::Address-Grammar::adr>
-        ] <?before \n | $>
+        [ | <Contact::Address::en_US::Grammar::adr>
+          | <Contact::Address::en_UK::Grammar::adr>
+        ] <?before \v | $>
     }
 
-    token tel   { <-[\n]>+ }
-    token email { <-[\n]>+ }
+    token tel   { <-[\v]>+ }
+    token email { <-[\v]>+ }
 
     method parse($text is copy, |c) {
         $text = prep($text);
@@ -249,7 +203,7 @@ grammar Grammar is Name-Grammar {
 
 class Card does Actionable {
     has Str  $.version = "4.0";
-    has Name $.name handles ('fn', |Name.attrs);
+    has Contact::Name::Name $.name handles ('fn', |Contact::Name::Name.attrs);
     has      $.adr  handles <po-box ext-address street locality region postal-code country>;
     has Str  $.tel;
     has Str  $.email;
@@ -257,14 +211,11 @@ class Card does Actionable {
 
 class Actions {
     method TOP($/)  { make Card.action($/) }
-    method name($/) { make Name.action($/) }
+    method name($/) { make Contact::Name::Name.action($/) }
     method adr($/) {
-        for @locale-adrs -> ($gram, $cls) {
-            my $key = $gram.^name ~ '::adr';
-            if $/{$key}.defined {
-                make $cls.action($/{$key});
-                return;
-            }
+        for @locale-adrs -> ($grammar, $class) {
+            my $key = $grammar.^name ~ '::adr';
+            make $class.action($/{$key}) with $/{$key};
         }
     }
 }
