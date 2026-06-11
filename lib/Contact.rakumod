@@ -129,6 +129,17 @@ my $vcard = Contact::vCard.new(:$card);
 print $vcard;   # coerces via method Str
 =end code
 
+Also parses a vCard string back to a C<Card> (locale-agnostic, via C<Contact::vCard::Grammar>):
+
+=begin code :lang<raku>
+my $card = Contact::vCard.parse($vcard-string);
+=end code
+
+This enables round-trip use and LLM DSL workflows: prompt the LLM to extract
+contact data as vCard 4.0, then parse the result directly.
+The C<Contact::vCard::Grammar> and C<Contact::vCard::Actions> from
+C<Contact::vCard> can also be used directly in the slangify.org playground.
+
 =head2 Synonyms
 
 Label synonyms live in C<Contact.rakumod>; address and name synonyms live in
@@ -262,6 +273,50 @@ class Actions {
     }
 }
 
+my grammar vCard-Parse {
+    token TOP {
+        'BEGIN:VCARD' \v
+        'VERSION:' <-[\v]>+ \v
+        <prop>*
+        'END:VCARD' \v?
+    }
+    token prop  {
+        | <fn>
+        | <n>
+        | <adr>
+        | <tel>
+        | <email>
+        | <skip>
+    }
+    token fn    { 'FN:'    <value> \v }
+    token n     { 'N:'     <nval>  \v }
+    token adr   { 'ADR'   <parms>? ':' <adrval> \v }
+    token tel   { 'TEL'   <parms>? ':' <value>  \v }
+    token email { 'EMAIL' <parms>? ':' <value>  \v }
+    token skip  { <!before 'END:'> \V* \v }
+    token parms { <-[:]>+ }
+    token value { <-[\v]>+ }
+    # N:   family;given;additional;prefix;suffix  (RFC 6350 §6.2.2)
+    token nval   { <comp> ** 5 % ';' }
+    # ADR: po-box;ext-address;street;locality;region;postal-code;country  (§6.3.1)
+    token adrval { <comp> ** 7 % ';' }
+    token comp   { <-[;\v]>* }
+}
+
+my class vCard-Actions {
+    method TOP($/) {
+        my %f;
+        for $<prop> -> $p {
+            %f<fn>     = ~$p<fn><value>    with $p<fn>;
+            %f<nval>   = $p<n><nval>       with $p<n>;
+            %f<adrval> = $p<adr><adrval>   with $p<adr>;
+            %f<tel>    = ~$p<tel><value>   with $p<tel>;
+            %f<email>  = ~$p<email><value> with $p<email>;
+        }
+        make %f
+    }
+}
+
 class jCard {
     has Card $.card;
 
@@ -297,5 +352,34 @@ class vCard {
             END:VCARD
             END
         }
+    }
+
+    method parse(Str:D $vcard --> Card) {
+        my $m = vCard-Parse.parse($vcard, actions => vCard-Actions.new);
+        X::Contact::CannotParse.new(:text($vcard)).throw unless $m;
+        my %f = $m.made;
+
+        my @n = %f<nval>.defined ?? %f<nval><comp>.map(*.Str) !! (('') xx 5).list;
+        my ($family, $given, $additional-str, $prefix, $suffix) = @n;
+        my $name = Contact::Name::Name.new(
+            family     => ($family  || Str),
+            given      => ($given   || Str),
+            prefix     => ($prefix  || Str),
+            suffix     => ($suffix  || Str),
+            additional => Array[Str].new($additional-str.split(/\s+/).grep(*.so)),
+        );
+
+        my @adr = %f<adrval>.defined ?? %f<adrval><comp>.map(*.Str) !! (('') xx 7).list;
+        my ($po-box, $ext-address, $street, $locality, $region, $postal-code, $country) = @adr;
+        my $adr-obj = Contact::Address::Generic.new(
+            :$po-box, :$ext-address, :$street,
+            :$locality, :$region, :$postal-code, :$country,
+        );
+
+        Card.new(
+            :$name, :adr($adr-obj),
+            tel   => (%f<tel>   || Str),
+            email => (%f<email> || Str),
+        )
     }
 }

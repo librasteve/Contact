@@ -1,0 +1,46 @@
+use Test;
+use Contact;
+
+# round-trip: free-form → Card → vCard.Str → vCard.parse → Card
+my $us-text = q:to/END/;
+John Doe
+123 Main St.
+Springfield
+IL 62704
+United States
+Tel: 555-867-5309
+Email: john.doe@example.com
+END
+
+my $card1     = Contact::Grammar.parse($us-text, actions => Contact::Actions.new).made;
+my $vcard-str = Contact::vCard.new(:card($card1)).Str;
+my $card2     = Contact::vCard.parse($vcard-str);
+
+is $card2.fn,          $card1.fn,          'round-trip fn';
+is $card2.street,      $card1.street,      'round-trip street';
+is $card2.locality,    $card1.locality,    'round-trip locality';
+is $card2.region,      $card1.region,      'round-trip region';
+is $card2.postal-code, $card1.postal-code, 'round-trip postal-code';
+is $card2.tel,         $card1.tel,         'round-trip tel';
+is $card2.email,       $card1.email,       'round-trip email';
+
+# direct parse of LLM-style vCard (UK address)
+my $llm-vcard = q:to/END/;
+BEGIN:VCARD
+VERSION:4.0
+FN:Jane Smith
+N:Smith;Jane;;;
+ADR;TYPE=home:;Sleepy Cottage;123 High Street;Henley-on-Thames;Oxon;RG9 2XX;UK
+TEL;TYPE=voice:01491 123456
+EMAIL:jane@example.com
+END:VCARD
+END
+
+my $card3 = Contact::vCard.parse($llm-vcard);
+is $card3.fn,          'Jane Smith',       'LLM vCard fn';
+is $card3.street,      '123 High Street',  'LLM vCard street';
+is $card3.locality,    'Henley-on-Thames', 'LLM vCard locality';
+is $card3.postal-code, 'RG9 2XX',          'LLM vCard postal-code';
+is $card3.tel,         '01491 123456',     'LLM vCard tel';
+
+done-testing;
