@@ -22,7 +22,7 @@ my $card  = Contact::Grammar.parse($text, actions => Contact::Actions.new).made;
 my $jcard = Contact::jCard.new(:$card);
 my $vcard = Contact::vCard.new(:$card);
 
-say $card.n;                                              # John Doe
+say $card.fn;                                              # John Doe
 say $card.street;                                          # 123 Main St.
 say "{.locality}, {.region} {.postal-code}" given $card;  # Springfield, IL 62704
 
@@ -37,48 +37,79 @@ data conforming to B<vCard 4.0 (RFC 6350)> and B<jCard (RFC 7095)>.
 
 =head2 Input format
 
-The input is a plain-text block. The full name (C<n>) is always the first line;
-all other fields are optional and may appear in any order:
+The input is a plain-text block. The full name is always the first line;
+all other fields are optional and may appear in any order.
+
+US format:
 
 =begin code
-John Doe                     ← n        (required, always first)
-PO Box 999                   ← po-box    (optional)
-Apt 4B                       ← ext-address (optional, see %syns<apt>)
+John Doe                     ← name     (required, always first)
+PO Box 999                   ← po-box   (optional)
+Apt 4B                       ← ext-address (optional — Apt/Suite/Unit/…)
 123 Main St.                 ← street
 Springfield                  ← locality
 IL 62704                     ← region + postal-code
-United States                ← country   (optional, see %syns<country>)
-Tel: 555-867-5309            ← tel       (optional, see %syns<tel>)
-Email: john.doe@example.com  ← email     (optional, see %syns<email>)
+United States                ← country  (optional)
+Tel: 555-867-5309            ← tel      (optional — Tel/Telephone/Phone)
+Email: john.doe@example.com  ← email    (optional — Email/E-mail)
 =end code
 
-Label synonyms (C<Tel>/C<Telephone>/C<Phone>, C<Email>/C<E-mail>) and apartment
-prefixes (C<Apt>/C<Suite>/C<Unit>/…) are case-insensitive. The colon separator
-after a label is optional. All synonym lists are extensible via C<%syns>.
+UK format (trailing commas stripped automatically):
+
+=begin code
+Jane Smith
+PO Box 42                    ← po-box   (optional)
+Sleepy Cottage               ← ext-address (optional — named house, no digits)
+123 High Street              ← street
+Henley-on-Thames             ← locality
+Oxon                         ← region   (optional)
+RG9 2XX                      ← postal-code
+UK                           ← country  (optional)
+=end code
+
+The single C<Contact::Grammar> auto-detects locale from the address structure.
+Label and country synonyms are defined per locale in their respective modules.
 
 =head2 Contact::Grammar
 
-Parses a contact string. Inherits address tokens from C<Contact::Adr-Grammar>.
-Throws C<X::Contact::CannotParse> if the input cannot be parsed.
+Boss grammar that assembles locale sub-grammars. Strips trailing commas and
+chomps the input before parsing. Throws C<X::Contact::CannotParse> if the
+input cannot be parsed.
 
 =begin code :lang<raku>
 my $card = Contact::Grammar.parse($text, actions => Contact::Actions.new).made;
 =end code
 
+Locale address grammars are registered in C<@locale-adrs>:
+
+=item C<Contact::Address::en_US::Grammar> — US street addresses
+=item C<Contact::Address::en_UK::Grammar> — UK street addresses
+
 =head2 Contact::Address
 
-Holds the seven jCard ADR components defined in B<RFC 6350 §6.3.1>:
+Role defining the seven RFC 6350 §6.3.1 address components:
 C<po-box>, C<ext-address>, C<street>, C<locality>, C<region>, C<postal-code>,
 C<country>. The C<components> method returns them as an ordered list with absent
 fields as empty strings, ready for embedding in a jCard C<adr> array.
+
+Locale classes (C<Contact::Address::en_US::Address>,
+C<Contact::Address::en_UK::Address>) implement this role, mapping their
+local attribute names (e.g. C<town>, C<postcode>) to the RFC methods.
+
+=head2 Contact::Name
+
+Module providing C<Contact::Name::Grammar> and C<Contact::Name::Name>.
+The grammar parses a free-form name line into prefix, given, additional,
+family, and suffix components. The class implements RFC 6350 C<N> and C<FN>
+fields via C<components> and C<fn>.
 
 =head2 Contact::Card
 
 The primary parsed result, populated automatically from grammar captures via
 L<Actionable|https://raku.land/zef:librasteve/Actionable>. Attributes:
-C<version> (default C<"4.0">), C<n>, C<adr> (a C<Contact::Address>), C<tel>,
-C<email>. Address sub-fields (C<street>, C<locality>, etc.) are delegated
-directly from C<$.adr>.
+C<version> (default C<"4.0">), C<name>, C<adr>, C<tel>, C<email>.
+Name sub-fields (C<fn>, C<given>, C<family>, etc.) and address sub-fields
+(C<street>, C<locality>, etc.) are delegated directly from C<$.name> and C<$.adr>.
 
 =head2 Contact::jCard
 
@@ -100,16 +131,37 @@ print $vcard;   # coerces via method Str
 
 =head2 Synonyms
 
-C<%syns> is the single configuration point for all keyword lists.
-All matches are case-insensitive:
+Label synonyms live in C<Contact.rakumod>; address and name synonyms live in
+their locale modules. All matches are case-insensitive.
+
+C<Contact> (tel/email labels):
 
 =begin code :lang<raku>
 constant %syns = (
-    tel     => <Tel Telephone Phone>,
-    email   => <Email E-mail>,
-    apt     => <Apt Apartment Suite Ste Unit Flat Fl>,
-    country => ('United States of America', 'United States', 'USA', 'US', 'America'),
+    tel   => <Tel Telephone Phone>,
+    email => <Email E-mail>,
 );
+=end code
+
+C<Contact::Address::en_US> (apt prefixes, country names):
+
+=begin code :lang<raku>
+my constant @apt-syns     = <Apt Apartment Suite Ste Unit Flat Fl>;
+my constant @country-syns = ('United States of America', 'United States', 'USA', 'US', 'America');
+=end code
+
+C<Contact::Address::en_UK> (country names):
+
+=begin code :lang<raku>
+my constant @country-syns = ('England', 'Scotland', 'Wales', 'Northern Ireland',
+                              'United Kingdom', 'UK', 'Great Britain', 'GB', 'Britain', ...);
+=end code
+
+C<Contact::Name> (honorifics, suffixes):
+
+=begin code :lang<raku>
+my constant @prefix-syns = <Mr Mrs Ms Miss Dr Prof Rev>;
+my constant @suffix-syns = <Jr Sr II III IV Esq PhD MD JD>;
 =end code
 
 =head2 Exceptions
@@ -131,16 +183,6 @@ librasteve <librasteve@furnival.net>
 Copyright 2026 librasteve
 
 This library is free software; you can redistribute it and/or modify it under the Artistic License 2.0.
-
-=end pod
-
-=begin pod
-
-=head1 TODOS
-
-=item parse vCard (as LLM DSL?) ie returns a Contact::Card
-=item breakdown tel
-=item exception for each Grammar block - locale and thingy
 
 =end pod
 
