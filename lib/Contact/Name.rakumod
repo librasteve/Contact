@@ -1,25 +1,23 @@
 use Actionable;
 
-unit module Contact::Name;
+class Contact::Name is Actionable {
+    my constant @prefix-syns = <Mr Mrs Ms Miss Dr Prof Rev>;
+    my constant @suffix-syns = <Jr Sr II III IV Esq PhD MD JD>;
 
-my constant @prefix-syns = <Mr Mrs Ms Miss Dr Prof Rev>;
-my constant @suffix-syns = <Jr Sr II III IV Esq PhD MD JD>;
-
-grammar Grammar {
-    regex name {
-        [<prefix> \h+]?
-        [
-        | <given=word> [\h+ <additional=word>]* \h+ <family=word>
-        | <family=word>
-        ]
-        [\h+ <suffix>]?
+    grammar Grammar {
+        regex name {
+            [<prefix> \h+]?
+            [
+            | <given=word> [\h+ <additional=word>]* \h+ <family=word>
+            | <family=word>
+            ]
+            [\h+ <suffix>]?
+        }
+        token prefix { :i @prefix-syns '.'? }
+        token suffix { :i @suffix-syns '.'? }
+        token word   { <!before :i @suffix-syns '.'? [\s|$]> \S+ }
     }
-    token prefix { :i @prefix-syns '.'? }
-    token suffix { :i @suffix-syns '.'? }
-    token word   { <!before :i @suffix-syns '.'? [\s|$]> \S+ }
-}
 
-class Name is Actionable {
     has Str $.prefix;
     has Str $.given;
     has Array[Str] $.additional;

@@ -1,5 +1,7 @@
 use Test;
 use Contact;
+use Contact::vCard;
+use Contact::jCard;
 
 my $text = q:to/END/;
 John Doe

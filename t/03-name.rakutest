@@ -1,6 +1,8 @@
 use v6.d;
 use Test;
 use Contact;
+use Contact::vCard;
+use Contact::jCard;
 
 sub parse-card(Str $text) {
     Contact::Grammar.parse($text, actions => Contact::Actions.new).made

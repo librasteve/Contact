@@ -1,5 +1,6 @@
 use Test;
 use Contact;
+use Contact::vCard;
 
 # round-trip: free-form → Card → vCard.Str → vCard.parse → Card
 my $us-text = q:to/END/;

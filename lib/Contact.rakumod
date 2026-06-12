@@ -98,7 +98,7 @@ local attribute names (e.g. C<town>, C<postcode>) to the RFC methods.
 
 =head2 Contact::Name
 
-Module providing C<Contact::Name::Grammar> and C<Contact::Name::Name>.
+Module providing C<Contact::Name::Grammar> and C<Contact::Name>.
 The grammar parses a free-form name line into prefix, given, additional,
 family, and suffix components. The class implements RFC 6350 C<N> and C<FN>
 fields via C<components> and C<fn>.
@@ -256,7 +256,7 @@ grammar Grammar is Contact::Name::Grammar {
 
 class Card does Actionable {
     has Str  $.version = "4.0";
-    has Contact::Name::Name $.name handles ('fn', |Contact::Name::Name.attrs);
+    has Contact::Name $.name handles ('fn', |Contact::Name.attrs);
     has      $.adr  handles <po-box ext-address street locality region postal-code country>;
     has Str  $.tel;
     has Str  $.email;
@@ -264,122 +264,11 @@ class Card does Actionable {
 
 class Actions {
     method TOP($/)  { make Card.action($/) }
-    method name($/) { make Contact::Name::Name.action($/) }
+    method name($/) { make Contact::Name.action($/) }
     method adr($/) {
         for @locale-adrs -> ($grammar, $class) {
             my $key = $grammar.^name ~ '::adr';
             make $class.action($/{$key}) with $/{$key};
         }
-    }
-}
-
-my grammar vCard-Parse {
-    token TOP {
-        'BEGIN:VCARD' \v
-        'VERSION:' <-[\v]>+ \v
-        <prop>*
-        'END:VCARD' \v?
-    }
-    token prop  {
-        | <fn>
-        | <n>
-        | <adr>
-        | <tel>
-        | <email>
-        | <skip>
-    }
-    token fn    { 'FN:'    <value> \v }
-    token n     { 'N:'     <nval>  \v }
-    token adr   { 'ADR'   <parms>? ':' <adrval> \v }
-    token tel   { 'TEL'   <parms>? ':' <value>  \v }
-    token email { 'EMAIL' <parms>? ':' <value>  \v }
-    token skip  { <!before 'END:'> \V* \v }
-    token parms { <-[:]>+ }
-    token value { <-[\v]>+ }
-    # N:   family;given;additional;prefix;suffix  (RFC 6350 §6.2.2)
-    token nval   { <comp> ** 5 % ';' }
-    # ADR: po-box;ext-address;street;locality;region;postal-code;country  (§6.3.1)
-    token adrval { <comp> ** 7 % ';' }
-    token comp   { <-[;\v]>* }
-}
-
-my class vCard-Actions {
-    method TOP($/) {
-        my %f;
-        for $<prop> -> $p {
-            %f<fn>     = ~$p<fn><value>    with $p<fn>;
-            %f<nval>   = $p<n><nval>       with $p<n>;
-            %f<adrval> = $p<adr><adrval>   with $p<adr>;
-            %f<tel>    = ~$p<tel><value>   with $p<tel>;
-            %f<email>  = ~$p<email><value> with $p<email>;
-        }
-        make %f
-    }
-}
-
-class jCard {
-    has Card $.card;
-
-    method to-json {
-        use JSON::Fast;
-        given $!card {
-            to-json [
-                "vcard", [
-                    ["version", {},                "text", .version        ],
-                    ["fn",      {},                "text", .fn             ],
-                    ["n",       {},                "text", .name.components.list ],
-                    ["adr",     {type => "home"},  "text", .adr.components ],
-                    ["tel",     {type => "voice"}, "uri",  .tel            ],
-                    ["email",   {},                "text", .email          ],
-                ]
-            ]
-        }
-    }
-}
-
-class vCard {
-    has Card $.card;
-
-    method Str {
-        given $!card { qq:to/END/;
-            BEGIN:VCARD
-            VERSION:{.version}
-            FN:{.fn}
-            N:{.name.components.join(';')}
-            ADR;TYPE=home:{.adr.components.join(';')}
-            TEL;TYPE=voice:{.tel // ''}
-            EMAIL:{.email // ''}
-            END:VCARD
-            END
-        }
-    }
-
-    method parse(Str:D $vcard --> Card) {
-        my $m = vCard-Parse.parse($vcard, actions => vCard-Actions.new);
-        X::Contact::CannotParse.new(:text($vcard)).throw unless $m;
-        my %f = $m.made;
-
-        my @n = %f<nval>.defined ?? %f<nval><comp>.map(*.Str) !! (('') xx 5).list;
-        my ($family, $given, $additional-str, $prefix, $suffix) = @n;
-        my $name = Contact::Name::Name.new(
-            family     => ($family  || Str),
-            given      => ($given   || Str),
-            prefix     => ($prefix  || Str),
-            suffix     => ($suffix  || Str),
-            additional => Array[Str].new($additional-str.split(/\s+/).grep(*.so)),
-        );
-
-        my @adr = %f<adrval>.defined ?? %f<adrval><comp>.map(*.Str) !! (('') xx 7).list;
-        my ($po-box, $ext-address, $street, $locality, $region, $postal-code, $country) = @adr;
-        my $adr-obj = Contact::Address::Generic.new(
-            :$po-box, :$ext-address, :$street,
-            :$locality, :$region, :$postal-code, :$country,
-        );
-
-        Card.new(
-            :$name, :adr($adr-obj),
-            tel   => (%f<tel>   || Str),
-            email => (%f<email> || Str),
-        )
     }
 }

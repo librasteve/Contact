@@ -1,3 +1,5 @@
+use Actionable;
+
 role Contact::Address {
     method po-box      { Str }
     method ext-address { Str }
@@ -11,7 +13,7 @@ role Contact::Address {
     method components { self.attrs.map: { self."$_"() // '' } }
 }
 
-class Contact::Address::Generic does Contact::Address {
+class Contact::Address::Generic does Contact::Address does Actionable {
     has Str $.po-box;
     has Str $.ext-address;
     has Str $.street;

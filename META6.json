@@ -18,6 +18,7 @@
     "Contact::Address::en_UK": "lib/Contact/Address/en_UK.rakumod",
     "Contact::Address::en_US": "lib/Contact/Address/en_US.rakumod",
     "Contact::Name": "lib/Contact/Name.rakumod",
+    "Contact::jCard": "lib/Contact/jCard.rakumod",
     "Contact::vCard": "lib/Contact/vCard.rakumod"
   },
   "resources": [
