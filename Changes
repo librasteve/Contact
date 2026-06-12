@@ -1,4 +1,11 @@
 Revision history for Contact
 
 {{$NEXT}}
-    - Completely refactored
+
+0.0.2  2026-06-12T21:36:00+01:00
+    - Add Contact::vCard with grammar/actions for vCard 4.0 parse (LLM DSL target)
+    - Add Contact::jCard serialiser to own module
+    - Move Contact::Name to unit class (eliminates Contact::Name::Name duplication)
+    - Add Contact::Address::Generic does Actionable for locale-agnostic ADR
+    - vCard grammar/actions aligned with main Contact pattern via Actionable
+    - Zip+4 postal-code support in en_US (already present via \d+ token)

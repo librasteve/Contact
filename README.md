@@ -1,3 +1,5 @@
+[![Actions Status](https://github.com/librasteve/Contact/actions/workflows/test.yml/badge.svg)](https://github.com/librasteve/Contact/actions)
+
 NAME
 ====
 
@@ -90,7 +92,7 @@ Locale classes (`Contact::Address::en_US::Address`, `Contact::Address::en_UK::Ad
 Contact::Name
 -------------
 
-Module providing `Contact::Name::Grammar` and `Contact::Name::Name`. The grammar parses a free-form name line into prefix, given, additional, family, and suffix components. The class implements RFC 6350 `N` and `FN` fields via `components` and `fn`.
+Module providing `Contact::Name::Grammar` and `Contact::Name`. The grammar parses a free-form name line into prefix, given, additional, family, and suffix components. The class implements RFC 6350 `N` and `FN` fields via `components` and `fn`.
 
 Contact::Card
 -------------
@@ -116,6 +118,14 @@ Wraps a `Card` and stringifies to **vCard 4.0 format (RFC 6350)**:
 my $vcard = Contact::vCard.new(:$card);
 print $vcard;   # coerces via method Str
 ```
+
+Also parses a vCard string back to a `Card` (locale-agnostic, via `Contact::vCard::Grammar`):
+
+```raku
+my $card = Contact::vCard.parse($vcard-string);
+```
+
+This enables round-trip use and LLM DSL workflows: prompt the LLM to extract contact data as vCard 4.0, then parse the result directly. The `Contact::vCard::Grammar` and `Contact::vCard::Actions` from `Contact::vCard` can also be used directly in the slangify.org playground.
 
 Synonyms
 --------
