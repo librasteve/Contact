@@ -2,6 +2,9 @@ Revision history for Contact
 
 {{$NEXT}}
 
+0.0.3  2026-06-14T12:06:05+01:00
+    - fez check
+
 0.0.2  2026-06-12T21:36:00+01:00
     - Add Contact::vCard with grammar/actions for vCard 4.0 parse (LLM DSL target)
     - Add Contact::jCard serialiser to own module
