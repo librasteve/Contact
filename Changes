@@ -1,6 +1,7 @@
 Revision history for Contact
 
 {{$NEXT}}
+    - bump to api<2>
 
 0.0.3  2026-06-14T12:06:05+01:00
     - fez check
