@@ -1,4 +1,5 @@
 {
+  "api": "2",
   "auth": "zef:librasteve",
   "authors": [
     "librasteve"
@@ -28,6 +29,5 @@
   ],
   "test-depends": [
   ],
-  "version": "0.0.3",
-  "api": "2"
+  "version": "0.0.4"
 }
