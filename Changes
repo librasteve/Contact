@@ -1,6 +1,7 @@
 Revision history for Contact
 
 {{$NEXT}}
+    - Enforce vCard FN/N cardinality (RFC 6350), order-independent
 
 0.0.4  2026-06-15T16:15:18+01:00
     - bump to api<2>

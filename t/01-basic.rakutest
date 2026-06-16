@@ -70,4 +70,58 @@ subtest 'name only' => {
     nok $card.email,          "email absent";
 }
 
+subtest 'vCard with N' => {
+    my $text = q:to/END/;
+        BEGIN:VCARD
+        VERSION:4.0
+        FN:John Doe
+        N:Doe;John;;;
+        ADR;TYPE=home:;;123 Main St.;Springfield;IL;62704;
+        TEL;TYPE=voice:555-867-5309
+        EMAIL:john.doe@example.com
+        END:VCARD
+        END
+    my $card = Contact::vCard.parse($text);
+    is $card.fn,     "John Doe",             "fn";
+    is $card.family, "Doe",                  "family (from N)";
+    is $card.street, "123 Main St.",         "street";
+    is $card.tel,    "555-867-5309",         "tel";
+    is $card.email,  "john.doe\@example.com", "email";
+}
+
+subtest 'vCard without N' => {
+    my $text = q:to/END/;
+        BEGIN:VCARD
+        VERSION:4.0
+        FN:Jane Smith
+        EMAIL:jane@example.com
+        END:VCARD
+        END
+    my $card = Contact::vCard.parse($text);
+    is $card.fn,    "Jane Smith",        "fn (derived from FN)";
+    is $card.email, "jane\@example.com", "email";
+}
+
+subtest 'vCard missing FN fails to parse' => {
+    my $text = q:to/END/;
+        BEGIN:VCARD
+        VERSION:4.0
+        EMAIL:nofn@example.com
+        END:VCARD
+        END
+    dies-ok { Contact::vCard.parse($text) }, "FN is required (RFC 6350 cardinality 1*)";
+}
+
+subtest 'vCard with two N lines fails to parse' => {
+    my $text = q:to/END/;
+        BEGIN:VCARD
+        VERSION:4.0
+        FN:John Doe
+        N:Doe;John;;;
+        N:Smith;Jane;;;
+        END:VCARD
+        END
+    dies-ok { Contact::vCard.parse($text) }, "N is at most one (RFC 6350 cardinality *1)";
+}
+
 done-testing;

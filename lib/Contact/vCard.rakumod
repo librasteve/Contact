@@ -17,6 +17,7 @@ class Contact::vCard {
             | <email>
             | <skip>
             ]*
+            <?{ $<fn> && $<n>.elems <= 1 }>
             'END:VCARD' \v?
         }
         token fn    { 'FN:'    <value> \v }
@@ -42,16 +43,23 @@ class Contact::vCard {
         token comp  { <-[;\v]>* }
     }
 
+    sub name-from-fn(Str $fn) {
+        Contact::Name.action(Contact::Name::Grammar.parse($fn, :rule<name>));
+    }
+
     class Actions {
+        method TOP($/) {
+            my %extra;
+            %extra<name> = $<n>
+                ?? $<n>[0].made
+                !! name-from-fn($<fn>[0].made);
+            make Contact::Card.action($/, |%extra)
+        }
+        method fn($/)    { make ~$<value> }
         method n($/)     { make Contact::Name.action($/)              }
         method adr($/)   { make Contact::Address::Generic.action($/)  }
         method tel($/)   { make ~$<value> }
         method email($/) { make ~$<value> }
-        method TOP($/) {
-            my %extra;
-            %extra<name> = $<n>[0].made if $<n>;
-            make Contact::Card.action($/, |%extra)
-        }
     }
 
     method Str {

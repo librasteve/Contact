@@ -28,4 +28,5 @@ given $card {
 say "\n=== vCard ===";
 print Contact::vCard.new(:$card);
 
+say "\n=== jCard ===";
 print Contact::jCard.new(:$card).to-json;
