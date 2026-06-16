@@ -3,6 +3,8 @@ use Contact::Name;
 use Contact::Address;
 
 class Contact::vCard {
+    has Contact::Card $.card;
+
     grammar Grammar {
         token TOP {
             'BEGIN:VCARD' \v
@@ -51,8 +53,6 @@ class Contact::vCard {
             make Contact::Card.action($/, |%extra)
         }
     }
-
-    has Contact::Card $.card;
 
     method Str {
         given $!card { qq:to/END/;

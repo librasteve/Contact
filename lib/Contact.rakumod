@@ -256,7 +256,7 @@ grammar Grammar is Contact::Name::Grammar {
 
 class Card does Actionable {
     has Str  $.version = "4.0";
-    has Contact::Name $.name handles ('fn', |Contact::Name.attrs);
+    has      $.name handles ('fn', |Contact::Name.attrs);
     has      $.adr  handles <po-box ext-address street locality region postal-code country>;
     has Str  $.tel;
     has Str  $.email;

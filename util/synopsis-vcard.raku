@@ -3,6 +3,7 @@ use v6.d;
 
 use Contact;
 use Contact::vCard;
+use Contact::jCard;
 
 my $vcard-text = q:to/END/;
 BEGIN:VCARD
@@ -26,3 +27,5 @@ given $card {
 
 say "\n=== vCard ===";
 print Contact::vCard.new(:$card);
+
+print Contact::jCard.new(:$card).to-json;
